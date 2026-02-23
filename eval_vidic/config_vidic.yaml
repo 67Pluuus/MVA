@@ -24,6 +24,7 @@ parameters:
   # Agent 参数
   agent:
     global_max_iterations: 20 # 通过Tool Agent获取信息的全局最大迭代次数
+    skip_iteration: false # 是否跳过初始化后的迭代过程 (仅用于测试或者快速预览)
     frame_bank_size: 16 # 每个视频最多取这么多帧
     initial_acceleration: 1.0
 

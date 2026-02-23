@@ -270,7 +270,12 @@ class AgentRunner:
                 
         # Phase 2: Main Iteration Loop
         max_iterations = self.config['parameters'].get('agent', {}).get('global_max_iterations', 10)
+        skip_iteration = self.config['parameters'].get('agent', {}).get('skip_iteration', False)
+
         global_terminated = False
+        if skip_iteration:
+            global_terminated = True # Skip iteration loop entirely
+
         iteration_count = 0
         
         while not global_terminated and iteration_count < max_iterations:
