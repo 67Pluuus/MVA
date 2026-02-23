@@ -1,0 +1,140 @@
+# 路径配置
+paths:
+  Benchmark_name: "Benchmark/CrossVid"
+  video_base_dir: "Benchmark/CrossVid/videos"
+  json_file: "Benchmark/CrossVid/QA/CCQA_1.json"
+
+# 模型配置
+models:
+  main_model_path: "Qwen/Qwen3-VL-2B-Instruct"
+  api_key: "7117a451621443b1b550a08acadad5e1.Mljp89b7Rwz7SeiA"
+
+# 运行参数
+parameters:
+  describe_frames: 6
+  num_gpus: 1
+  # 任务数量, -1 表示所有
+  num_tasks: -1
+  save_key_frames: false
+  save_video_frames: false
+  debug: false
+  number_type: "ABC"
+
+  # Agent 参数
+  agent:
+    target_score_ratio: 0.6 # 总分阈值比率
+    acceleration_threshold: 0.2 # 加速度阈值
+    video_score_threshold: 0.85 # 单视频分数阈值
+    global_max_iterations: 20 # 全局最大迭代次数
+    frame_bank_size: 10
+    initial_acceleration: 1.0
+
+  type_watermark: "visual_token" # 水印类型，"visual_token" 或 "none"
+  priority_score_k: 1.0 # 优先级计算中加速权重k的值，默认1.0
+  priority_score_t: 1.0 # 优先级计算中当前分数权重t的值，默认1.0
+
+# 提示词
+prompts:
+  video_description: |
+    /no_think
+    Describe the video in no more than 30 words.
+
+  video_redescription: |
+    /no_think
+    Based on the previous evaluation, the current description received a quality score of {SCORE:.2f}.
+    Please provide a more detailed and accurate description of the video content, specifically focusing on visual elements related to the question: "{QUESTION}".
+    Try to capture details that might have been missed, such as specific actions, objects, or text.
+    However, keep the description concise and within 60 words.
+
+  # 最终回答提示词
+  answer: |
+    /no_think
+    /*Task Description*/
+    You are an answer generation model in a multi-round iterative video Q&A task. You will receive multiple keyframes from different videos. Each frame has a label in the upper left corner indicating which video it belongs to (e.g., "Video 1", "Video 2", etc.).
+
+    Your task is to analyze all the provided keyframes and answer the question based on the visual information they contain. Pay attention to:
+    1. The visual content of each frame
+    2. Which video each frame belongs to (indicated by the label)
+    3. The differences and similarities between frames from different videos
+    4. The specific details relevant to answering the question
+
+    **Output Format:**
+    Output only your answer in less than 100 words.
+
+  # VCA 奖励模型提示词（基于VCA论文格式）
+  vca_main: |
+    /no_think
+    /* Task Description */
+    You are acting as a reward model to guide the video question-answering process. You have access to a {FRAME_COUNT}-frame video ({DURATION:.2f} seconds in duration). You are provided with N uniformly sampled frames from the video, which divide the video into N-1 distinct segments. 
+
+    <!-- Segment Description -->
+    /* Segment Information */
+    {SEGMENT_INFO}
+
+    /* Reward Instruction */
+    Your task is to evaluate the relevance of each frame (representing a segment or sub-segment) in answering the question below, to assist in identifying which segments are most effective for answering the question.
+    <!-- Reward Task Definition -->
+    {QUESTION}
+
+    <!-- Format Specification -->
+    Output ONLY two lines of numbers, nothing else:
+    Line 1: N-1 numbers (each between 0.01 and 1.00, separated by spaces), representing the relevance score of each segment between consecutive frames.
+    Line 2: A single number (between 0.01 and 1.00), representing whether all N frames together are sufficient to answer the question (1.00 = sufficient, 0.01 = insufficient).
+
+    Example output (if N=4):
+    0.75 0.82 0.65
+    0.85
+
+  tool_decide_action: |
+    You are a Tool Agent for video analysis. Your goal is to decide the next frame sampling strategy to answer the question.
+    Question: "{QUESTION}"
+    Current receptive field: {START_TIME:.2f}s to {END_TIME:.2f}s.
+    Video duration: {VIDEO_DURATION:.2f}s.
+    Is global receptive field: {IS_GLOBAL}
+
+    Options:
+    1. Focus Middle, Replace current frames
+    2. Focus Middle, Keep current frames
+    3. Focus Start/End, Replace current frames (Only available if global receptive field)
+    4. Focus Start/End, Keep current frames (Only available if global receptive field)
+    5. Global Uniform Sampling with offset, Replace current frames
+    6. Terminate video exploration (if no more useful information can be found)
+
+    Choose an option (1-6). If choosing 1-4, also specify the target time range [start, end] within the current receptive field to sample 8 frames.
+    Output exactly in this format:
+    Option: <number>
+    Range: [<start>, <end>]
+
+  tool_score_frames: |
+    You are a Tool Agent. Evaluate the importance of each of the following {NUM_FRAMES} frames for answering the question.
+    Question: "{QUESTION}"
+
+    Output exactly {NUM_FRAMES} floating-point numbers between 0.01 and 1.00, separated by spaces.
+    Example output:
+    0.10 0.85 0.40 0.90 0.20 0.15 0.70 0.50
+
+  tool_generate_raw_description: |
+    You are a Tool Agent. Based on the provided frames, generate a preliminary description of the visual content relevant to answering the question.
+    Question: "{QUESTION}"
+    Keep the description concise and factual.
+
+  desc_refine_and_evaluate: |
+    You are a Desc Agent. Your task is to fuse information, evaluate the quality of the description, and decide if we should stop exploring.
+    Question: "{QUESTION}"
+
+    Previous description of this video: "{DESC_OLD}"
+    New preliminary description of this video: "{DESC_RAW}"
+    Descriptions of other videos:
+    {OTHER_DESCS_TEXT}
+
+    Tasks:
+    1. Information Fusion: Combine the previous and new descriptions into a refined, concise description that best answers the question.
+    2. Description Scoring: Assign a score (0.01-1.00) to the refined description based on how well it helps answer the question.
+    3. Termination Check 1 (Current Video): Have we fully mined the useful information from this video? (True/False)
+    4. Termination Check 2 (Global Task): Combining all videos' information, do we have enough information to answer the question completely? (True/False)
+
+    Output exactly in this format:
+    Refined Description: <your refined description>
+    Score: <score>
+    Video Terminated: <True/False>
+    Global Terminated: <True/False>
