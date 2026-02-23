@@ -82,7 +82,7 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
 
 
 
-def DescribeVideo_qwen3_vl(video_path, question, sampled_frame=None, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", node_rank=None, temp_base_dir=None):
+def DescribeVideo_qwen3_vl(video_path, question, sampled_frame=None, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", node_rank=None, temp_base_dir=None, video_label="ONE of the videos"):
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     
     cap = cv2.VideoCapture(video_path)
@@ -140,7 +140,10 @@ def DescribeVideo_qwen3_vl(video_path, question, sampled_frame=None, prompt_temp
                 "image": i
             })
         
-        prompt_text = prompt_template.replace("{QUESTION}", question)
+        if prompt_template:
+            prompt_text = prompt_template.replace("{QUESTION}", question).replace("{VIDEO_LABEL}", video_label)
+        else:
+            prompt_text = f"Describe the video content relevant to the question: {question}"
 
         content.append({
             "type": "text",

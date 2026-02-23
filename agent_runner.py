@@ -127,15 +127,7 @@ class AgentRunner:
         timings = {}
         total_start = time.time()
         
-        # --- Step 0: Initial Description ---
-        timings['video_description'] = {
-            'start': time.time(),
-            'per_video': {},
-            'total': 0.0
-        }
-        
-        descriptions = {}
-        video_description_outputs = {} 
+        # --- Validate Videos ---
         valid_videos = []
         
         for i, v_path in enumerate(full_video_paths, 1):
@@ -143,32 +135,7 @@ class AgentRunner:
                 print(f"Warning: Video not found {v_path}")
                 continue
             valid_videos.append((i, v_path))
-            
-            if params.get('number_type') == "123":
-                v_key = f"Video {i}"
-            else:
-                v_key = f"Video {chr(ord('A') + i - 1)}"
-            
-            desc_start = time.time()
-            desc = DescribeVideo_qwen3_vl(
-                v_path, 
-                question, 
-                sampled_frame=params.get('describe_frames', 8),
-                prompt_template=prompts.get('video_description', ""), 
-                device_id=self.device_id,
-                model_path=self.config['models']['main_model_path'],
-                temp_base_dir=self.config['paths'].get('temp_frames_dir', None),
-                node_rank=self.node_rank
-            )
-            desc_end = time.time()
-            
-            descriptions[v_key] = desc
-            video_description_outputs[v_key] = desc
-            timings['video_description']['per_video'][v_key] = round(desc_end - desc_start, 3)
 
-        timings['video_description']['end'] = time.time()
-        timings['video_description']['total'] = round(timings['video_description']['end'] - timings['video_description']['start'], 3)
-        
         if not valid_videos:
             return {'error': "Error: No valid videos", 'success': False, 'key': key}
 
@@ -201,12 +168,10 @@ class AgentRunner:
         for idx, v_path in valid_videos:
             if self.config['parameters'].get('number_type') == "123":
                 v_name = f"Video {idx}"
-                v_label = v_name
             else:
                 v_name = f"Video {chr(ord('A') + idx - 1)}"
-                v_label = v_name
                 
-            # Pre-calculate duration to avoid repeated IO
+            # Pre-calculate duration
             v_duration = self._get_video_duration(v_path)
 
             TextBank['videos'][v_name] = {
@@ -214,67 +179,57 @@ class AgentRunner:
                 'idx': idx,
                 'duration': v_duration,
                 'iteration_count': 0,
-                'description': descriptions.get(v_name, ""),
-                'priority': 1.0,
+                'description': "Initial observation.", # Simple description
+                'priority': 1.0, # Will be calculated
                 'status': 'active',
-                'last_acceleration': self.config['parameters'].get('agent', {}).get('initial_acceleration', 1.0),
-                'last_score': 0.0,
+                'last_acceleration': self.config['parameters']['agent']['initial_acceleration'],
+                'last_score': self.config['parameters']['agent']['initial_score'], 
                 'current_frames': [],
                 'frame_bank': []
             }
             
-            # Basic exploration (Option 5)
-            # Create a safe directory name by replacing spaces
+            # Uniform sampling
             safe_v_name = v_name.replace(" ", "_")
             frames_info = self._extract_uniform_frames(v_path, 8, q_id, safe_v_name)
-            frame_paths = [f['path'] for f in frames_info]
             
-            # v_label is already defined at start of loop
+            # Generate initial description
+            # Pass video_label to describe function to allow template replacement
+            v_label_str = v_name # Use v_name as default label (e.g. Video A)
             
-            scores = tool_agent.score_frames(question, frame_paths, video_label=v_label)
-            
-            for f_info, score in zip(frames_info, scores):
-                TextBank['videos'][v_name]['frame_bank'].append((f_info['path'], score, f_info['time']))
-            TextBank['videos'][v_name]['frame_bank'].sort(key=lambda x: x[1], reverse=True)
-            TextBank['videos'][v_name]['frame_bank'] = TextBank['videos'][v_name]['frame_bank'][:self.config['parameters'].get('agent', {}).get('frame_bank_size', 10)]
-            
-            desc_raw = tool_agent.generate_raw_description(question, frame_paths, video_label=v_label)
-            
-            desc_refined, score_new, v_term, g_term = desc_agent.refine_and_evaluate(
-                question, TextBank['videos'][v_name]['description'], desc_raw, {}, video_label=v_label
+            initial_desc = DescribeVideo_qwen3_vl(
+                v_path, 
+                question, 
+                sampled_frame=self.config['parameters'].get('describe_frames', 8),
+                prompt_template=self.config['prompts'].get('video_description', ""), 
+                device_id=self.device_id,
+                model_path=self.config['models']['main_model_path'],
+                temp_base_dir=self.config['paths'].get('temp_frames_dir', None),
+                node_rank=self.node_rank,
+                video_label=v_label_str
             )
+
+            for f_info in frames_info:
+                # TextBank['videos'][v_name]['frame_bank'].append((f_info['path'], self.config['parameters']['agent']['initial_score'], f_info['time']))
+                pass # Wait for first iteration to score and add to bank
             
-            # Force termination signals to False during initialization
-            v_term = False
-            g_term = False
-            
-            TextBank['videos'][v_name]['description'] = desc_refined
-            TextBank['videos'][v_name]['last_score'] = score_new
             TextBank['videos'][v_name]['current_frames'] = frames_info
-            
-            if v_term:
-                TextBank['videos'][v_name]['status'] = 'desc_terminated'
+            TextBank['videos'][v_name]['description'] = initial_desc
             
             process_logs['initialization'].append({
                 'video': v_name,
-                'sampled_frames': [{'time': f['time'], 'score': s} for f, s in zip(frames_info, scores)],
-                'raw_description': desc_raw,
-                'refined_description': desc_refined,
-                'score': score_new,
-                'video_terminated': v_term,
-                'global_terminated': g_term
+                'status': 'initialized',
+                'initial_description': initial_desc,
+                'acceleration': self.config['parameters']['agent']['initial_acceleration'],
+                'score': self.config['parameters']['agent']['initial_score']
             })
 
-            if g_term:
-                break
-                
         # Phase 2: Main Iteration Loop
         max_iterations = self.config['parameters'].get('agent', {}).get('global_max_iterations', 10)
         skip_iteration = self.config['parameters'].get('agent', {}).get('skip_iteration', False)
 
         global_terminated = False
         if skip_iteration:
-            global_terminated = True # Skip iteration loop entirely
+            global_terminated = True
 
         iteration_count = 0
         
@@ -282,7 +237,13 @@ class AgentRunner:
             active_videos = {k: v for k, v in TextBank['videos'].items() if v['status'] == 'active'}
             if not active_videos:
                 break
-                
+            
+            # Calculate priority for all active videos to select one
+            # (Note: In original code priority was updated at end of loop. Here we should ensure it's up to date or use simple logic)
+            # Initial priority calculation using the formula if needed, but we initialized values.
+            for v_k, v_v in active_videos.items():
+                 v_v['priority'] = calculate_priority_score(v_v['last_score'], v_v['last_acceleration'], self.config)
+
             v_curr_name = max(active_videos.keys(), key=lambda k: active_videos[k]['priority'])
             v_curr = TextBank['videos'][v_curr_name]
             
@@ -292,9 +253,51 @@ class AgentRunner:
             else:
                 v_label = f"Video {chr(ord('A') + v_idx - 1)}"
 
-            # Use cached duration
             duration = v_curr.get('duration', self._get_video_duration(v_curr['path']))
-            option, target_start, target_end = tool_agent.decide_action(question, v_curr['current_frames'], duration, video_label=v_label)
+            
+            # --- Tool Agent Work ---
+            # 1. Score CURRENT frames (candidates) AND 2. Decide next action in ONE call
+            # We want to score the `current_frames` before adding them to the bank.
+            # The tool_agent.decide_action will now return scores for the input `current_frames`.
+            
+            current_candidate_frames = v_curr['current_frames']
+            existing_bank_frames = v_curr['frame_bank']
+            
+            # Note: decide_action now returns scores for the input `current_candidate_frames` AND the decision
+            candidate_scores, option, target_start, target_end = tool_agent.decide_action(
+                question, 
+                existing_bank_frames, 
+                current_candidate_frames, 
+                duration, 
+                video_label=v_label
+            )
+            
+            # Update frame bank with SCORED candidates
+            # Deduplicate: Only add if not present, or if new score is higher
+            existing_indices = {item[0]: i for i, item in enumerate(v_curr['frame_bank'])}
+
+            for i, f_info in enumerate(current_candidate_frames):
+                path = f_info['path']
+                score = candidate_scores[i] if i < len(candidate_scores) else 0.5
+                time_val = f_info['time']
+
+                if path in existing_indices:
+                    # If exists, check if new score is higher
+                    idx = existing_indices[path]
+                    old_path, old_score, old_time = v_curr['frame_bank'][idx]
+                    if score > old_score:
+                        v_curr['frame_bank'][idx] = (path, score, time_val)
+                else:
+                    # New frame
+                    v_curr['frame_bank'].append((path, score, time_val))
+                    # Update index map for subsequent checks in this loop (unlikely to have dups in one batch but safe)
+                    existing_indices[path] = len(v_curr['frame_bank']) - 1
+
+            # Enforce Frame Bank Capacity (keep top K scores)
+            bank_limit = self.config['parameters']['agent'].get('frame_bank_size', 16)
+            v_curr['frame_bank'].sort(key=lambda x: x[1], reverse=True)
+            if len(v_curr['frame_bank']) > bank_limit:
+                v_curr['frame_bank'] = v_curr['frame_bank'][:bank_limit]
             
             iter_log = {
                 'iteration': iteration_count + 1,
@@ -313,67 +316,78 @@ class AgentRunner:
                 process_logs['iterations'].append(iter_log)
                 continue
             
-            # Use safe name for directory creation
+            # Execute Action
             safe_v_curr_name = v_curr_name.replace(" ", "_")
             new_frames_info = self._sample_frames(v_curr['path'], option, target_start, target_end, v_curr['current_frames'], duration, q_id, safe_v_curr_name, iteration_count)
             new_frame_paths = [f['path'] for f in new_frames_info]
-            
-            # v_label is already defined above
             
             if not new_frame_paths:
                 v_curr['status'] = 'tool_terminated'
                 iter_log['status'] = 'tool_terminated_no_frames'
                 process_logs['iterations'].append(iter_log)
                 continue
+
+            # Update Current Frames for NEXT iteration
+            if option in [1, 3, 5]:
+                v_curr['current_frames'] = new_frames_info
                 
-            scores = tool_agent.score_frames(question, new_frame_paths, video_label=v_label)
+            # Note: We do NOT add new frames to bank yet. They will be scored in the NEXT iteration.
             
-            for f_info, score in zip(new_frames_info, scores):
-                v_curr['frame_bank'].append((f_info['path'], score, f_info['time']))
-            v_curr['frame_bank'].sort(key=lambda x: x[1], reverse=True)
-            v_curr['frame_bank'] = v_curr['frame_bank'][:self.config['parameters'].get('agent', {}).get('frame_bank_size', 10)]
-            
-            desc_raw = tool_agent.generate_raw_description(question, new_frame_paths, video_label=v_label)
-            
+            # --- Desc Agent Work ---
+            # Describe NEW frames AND Evaluate status in ONE call
             other_descs = {k: v['description'] for k, v in TextBank['videos'].items() if k != v_curr_name}
-            desc_refined, score_new, v_term, g_term = desc_agent.refine_and_evaluate(
-                question, v_curr['description'], desc_raw, other_descs, video_label=v_label
+            
+            desc_new_part, score_new, v_term, g_term = desc_agent.describe_and_evaluate(
+                question, 
+                frames=new_frame_paths, 
+                desc_old=v_curr['description'], 
+                other_descs=other_descs, 
+                video_label=v_label
             )
             
+            # Update Description
+            if v_curr['description'] == "Initial observation.":
+                 v_curr['description'] = desc_new_part
+            else:
+                 v_curr['description'] += f"\n{desc_new_part}"
+
             old_score = v_curr['last_score']
             acceleration = (score_new - old_score) / old_score if old_score > 0 else 0.0
             
-            v_curr['description'] = desc_refined
+            # Update state
             v_curr['last_score'] = score_new
             v_curr['last_acceleration'] = acceleration
             v_curr['iteration_count'] += 1
             
-            if option in [1, 3, 5]:
-                v_curr['current_frames'] = new_frames_info
-                
             if v_term:
                 v_curr['status'] = 'desc_terminated'
+                # If desc_agent terminates, force add current frames with 1.0 score
+                for f_info in v_curr['current_frames']:
+                     v_curr['frame_bank'].append((f_info['path'], 1.0, f_info['time']))
+                # Re-sort and truncate
+                v_curr['frame_bank'].sort(key=lambda x: x[1], reverse=True)
+                if len(v_curr['frame_bank']) > self.config['parameters']['agent'].get('frame_bank_size', 16):
+                    v_curr['frame_bank'] = v_curr['frame_bank'][:self.config['parameters']['agent'].get('frame_bank_size', 16)]
             if g_term:
                 global_terminated = True
-
-            P = calculate_priority_score(score_new, acceleration, self.config)
-            v_curr['priority'] = P
+                # Global termination -> force add ALL active current frames (for the current video)
+                if not v_term: # If not already handled above
+                     for f_info in v_curr['current_frames']:
+                        v_curr['frame_bank'].append((f_info['path'], 1.0, f_info['time']))
+                     v_curr['frame_bank'].sort(key=lambda x: x[1], reverse=True)
+                     if len(v_curr['frame_bank']) > self.config['parameters']['agent'].get('frame_bank_size', 16):
+                        v_curr['frame_bank'] = v_curr['frame_bank'][:self.config['parameters']['agent'].get('frame_bank_size', 16)]
 
             iter_log.update({
-                'sampled_frames': [{'time': f['time'], 'score': s} for f, s in zip(new_frames_info, scores)],
-                'raw_description': desc_raw,
-                'refined_description': desc_refined,
+                'new_description_part': desc_new_part,
+                'full_description': v_curr['description'],
                 'old_score': old_score,
                 'new_score': score_new,
                 'acceleration': acceleration,
-                'priority_after': P,
                 'video_terminated': v_term,
                 'global_terminated': g_term
             })
             process_logs['iterations'].append(iter_log)
-            
-            if g_term:
-                break
             
             iteration_count += 1
             
@@ -559,123 +573,72 @@ class AgentRunner:
                 frames_info.append({'path': f_path, 'time': t})
         return frames_info
 
-    def _wm_tag(self, img, video_idx, time_sec):
+    def _wm_visual(self, img, video_idx, time_sec):
         """
-        Mode 1: (tag) - Add Video Label and Timestamp to top-left corner.
+        Mode 1: (video_tag) - Add Video Label ONLY.
         """
         if self.config['parameters'].get('number_type') == "123":
             cv2.putText(img, f"Video {video_idx}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2, cv2.LINE_AA)
         else:
             cv2.putText(img, f"Video {chr(ord('A') + video_idx - 1)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
         
-        text = f"{time_sec:.2f}s"
-        cv2.putText(img, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
         return img
 
     def _wm_temporal(self, img, video_idx, time_sec, duration):
         """
-        Mode 3: (temporal) - Add Video Label to top-left, and a progress bar at the bottom.
+        Mode 2: (temporal_tag) - Add Timestamp (or progress?) ONLY.
         """
-        h, w = img.shape[:2]
+        # Requirement: "帧在视频中的时间戳"
+        # Previous implementation was progress bar. 
+        # But user says "temporal_tag: 帧在视频中的时间戳".
+        # Let's just put the text.
         
-        # 1. Video Label
-        if self.config['parameters'].get('number_type') == "123":
-            cv2.putText(img, f"Video {video_idx}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2, cv2.LINE_AA)
-        else:
-            cv2.putText(img, f"Video {chr(ord('A') + video_idx - 1)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
-            
-        # 2. Progress Bar
-        bar_height = int(h * 0.05) # 5% of height
-        bar_y = h - bar_height - 10
-        
-        # Background bar (gray)
-        cv2.rectangle(img, (10, bar_y), (w - 10, bar_y + bar_height), (100, 100, 100), -1)
-        
-        # Progress (red or green)
-        if duration > 0:
-            progress = min(max(time_sec / duration, 0.0), 1.0)
-            progress_width = int((w - 20) * progress)
-            cv2.rectangle(img, (10, bar_y), (10 + progress_width, bar_y + bar_height), (0, 255, 0), -1)
-            
-        # Timestamp text next to bar or on top? 
-        # Requirement says: "indicates current frame position", progress bar does that visually.
-        # But adding text is helpful. Let's add it above the bar.
-        text = f"{time_sec:.2f}s / {duration:.2f}s"
-        cv2.putText(img, text, (10, bar_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
+        text = f"{time_sec:.2f}s"
+        cv2.putText(img, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
         
         return img
 
     def _wm_trans_sequence(self, frame_bank, video_idx, output_dir):
         """
-        Mode 2: (trans) - Add transition frames between regular frames.
-        Returns a list of paths (strings).
+        Mode 3: (trans_frame)
+        Insert a transition frame [Video X] BEFORE the frames of the video.
+        Format: [Video1][frame1]...[Video2][frame1]...
         """
         watermarked_paths = []
-        # Sort by time just in case, though usually sorted by score.
-        # Wait, the prompt says "previewing the NEXT frame's info". 
-        # If sorted by score, the order is not chronological. Transition frames imply chronological viewing.
-        # However, the model input is a sequence of images. If the images are shuffled by score, a "transition" implies a jump in time/content.
-        # Usually for VLM input, we sort by time if we want temporal coherence.
-        # But here `frame_bank` is sorted by SCORE in `run_on_sample`.
-        # "TextBank['videos'][v_name]['frame_bank'].sort(key=lambda x: x[1], reverse=True)"
-        # If we insert transition frames, it suggests we want to guide the model through the frames.
-        # If the frames are out of order (score-based), "next frame" just means the next one in the list presented to the model.
-        # So I will respect the list order (which is score-based descending currently).
         
-        for i in range(len(frame_bank)):
-            src, score, t_sec = frame_bank[i]
-            
-            # Process current frame
-            if os.path.exists(src):
-                img = cv2.imread(src)
-                if img is not None:
-                    # Apply minimal tag (Video X) to keep context
-                    if self.config['parameters'].get('number_type') == "123":
-                        label = f"Video {video_idx}"
-                    else:
-                        label = f"Video {chr(ord('A') + video_idx - 1)}"
-                    
-                    cv2.putText(img, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
-                    cv2.putText(img, f"{t_sec:.2f}s", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
-                    
-                    dst = os.path.join(output_dir, f"frame_{i}.jpg")
-                    cv2.imwrite(dst, img)
-                    watermarked_paths.append(dst)
+        # Determine label
+        if self.config['parameters'].get('number_type') == "123":
+            label = f"Video {video_idx}"
+        else:
+            label = f"Video {chr(ord('A') + video_idx - 1)}"
 
-            # Add transition frame if there is a next frame
-            if i < len(frame_bank) - 1:
-                next_src, next_score, next_t_sec = frame_bank[i+1]
-                
-                # Create black image
-                # Use same size as last image or default
-                if 'img' in locals() and img is not None:
-                    h, w = img.shape[:2]
-                else:
-                    h, w = 720, 1280 # Default fallback
-                    
-                trans_img = np.zeros((h, w, 3), dtype=np.uint8)
-                
-                # Text: "Next: Video X - <time>s"
-                if self.config['parameters'].get('number_type') == "123":
-                    next_label = f"Video {video_idx}"
-                else:
-                    next_label = f"Video {chr(ord('A') + video_idx - 1)}"
-                    
-                text1 = "NEXT FRAME PREVIEW"
-                text2 = f"{next_label}"
-                text3 = f"Time: {next_t_sec:.2f}s"
-                
-                # Center text
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                
-                cv2.putText(trans_img, text1, (50, h//2 - 40), font, 1.5, (255, 255, 255), 2, cv2.LINE_AA)
-                cv2.putText(trans_img, text2, (50, h//2 + 10), font, 1.2, (200, 200, 200), 2, cv2.LINE_AA)
-                cv2.putText(trans_img, text3, (50, h//2 + 60), font, 1.2, (0, 255, 255), 2, cv2.LINE_AA)
-                
-                trans_dst = os.path.join(output_dir, f"trans_{i}_{i+1}.jpg")
-                cv2.imwrite(trans_dst, trans_img)
-                watermarked_paths.append(trans_dst)
-                
+        # Create separator frame
+        # Use simple size or detect from first real frame
+        h, w = 720, 1280
+        if frame_bank and os.path.exists(frame_bank[0][0]):
+            tmp = cv2.imread(frame_bank[0][0])
+            if tmp is not None:
+                h, w = tmp.shape[:2]
+
+        trans_img = np.zeros((h, w, 3), dtype=np.uint8)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        # Calculate text position
+        text_size = cv2.getTextSize(label, font, 2.0, 3)[0]
+        text_x = (w - text_size[0]) // 2
+        text_y = (h + text_size[1]) // 2
+        cv2.putText(trans_img, label, (text_x, text_y), font, 2.0, (255, 255, 255), 3, cv2.LINE_AA)
+        
+        trans_path = os.path.join(output_dir, f"trans_{video_idx}.jpg")
+        cv2.imwrite(trans_path, trans_img)
+        
+        # Add separator frame FIRST
+        watermarked_paths.append(trans_path)
+            
+        # Add regular frames (just copy them to be safe, or just return path if no other watermark)
+
+        for i, (src, _, _) in enumerate(frame_bank):
+             watermarked_paths.append(src)
+             
         return watermarked_paths
 
     def _apply_watermark_to_bank(self, frame_bank: List[tuple], video_idx: int, q_id: str, v_name: str, video_duration: float = 0.0) -> List[str]:
@@ -688,29 +651,35 @@ class AgentRunner:
         output_dir = os.path.join(self.config['paths']['key_frames_dir'], q_id, v_name)
         os.makedirs(output_dir, exist_ok=True)
         
-        # Special case for 'trans' because it changes the list structure (adds frames)
-        if wm_type == 'trans':
-            return self._wm_trans_sequence(frame_bank, video_idx, output_dir)
+
             
         watermarked_paths = []
         
+        # 1. Apply visual/temporal watermarks first
+        processed_frames_with_time = [] 
+
         for i, (src, score, t_sec) in enumerate(frame_bank, 1):
             if os.path.exists(src):
                 img = cv2.imread(src)
                 if img is not None:
                     
-                    if wm_type == 'visual_token' or wm_type == 'tag':
-                        img = self._wm_tag(img, video_idx, t_sec)
-                    elif wm_type == 'temporal':
+                    if "video_tag" in wm_type:
+                        img = self._wm_visual(img, video_idx, t_sec)
+                    
+                    if 'temporal_tag' in wm_type:
                         # Use passed duration directly
                         img = self._wm_temporal(img, video_idx, t_sec, video_duration)
-                    # Add more types here
                     
                     dst = os.path.join(output_dir, f"watermarked_{i}.jpg")
                     cv2.imwrite(dst, img)
                     watermarked_paths.append(dst)
+                    # Keep track of time for trans sequence if needed (though transition usually doesn't need time)
+                    processed_frames_with_time.append((dst, score, t_sec))
 
-        if 'trans' in wm_type:
-            return self._wm_trans_sequence(frame_bank, video_idx, output_dir)
+        # 2. Add transition frame if needed
+        # Special case for 'trans' because it changes the list structure (adds frames)
+        if 'trans_frame' in wm_type:
+            # Pass the already processed (watermarked) frames effectively
+            return self._wm_trans_sequence(processed_frames_with_time, video_idx, output_dir)
                     
         return watermarked_paths
