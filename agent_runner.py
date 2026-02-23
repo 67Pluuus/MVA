@@ -256,23 +256,27 @@ class AgentRunner:
             duration = v_curr.get('duration', self._get_video_duration(v_curr['path']))
             
             # --- Tool Agent Work ---
-            # 1. Score CURRENT frames (candidates) AND 2. Decide next action in ONE call
-            # We want to score the `current_frames` before adding them to the bank.
-            # The tool_agent.decide_action will now return scores for the input `current_frames`.
-            
+            # 1. Visualize candidates with timestamps for Tool Agent
             current_candidate_frames = v_curr['current_frames']
+            current_vis_frames = self._add_timestamp_to_frames(current_candidate_frames)
+            
+            # --- Tool Agent Work ---
+            # 2. Score CURRENT frames (candidates) AND 3. Decide next action in ONE call
+            
             existing_bank_frames = v_curr['frame_bank']
             
-            # Note: decide_action now returns scores for the input `current_candidate_frames` AND the decision
+            # Note: We pass the TIMESTAMPED frames for visual reasoning, but the original frames for metadata
             candidate_scores, option, target_start, target_end = tool_agent.decide_action(
                 question, 
                 existing_bank_frames, 
-                current_candidate_frames, 
+                current_vis_frames, 
                 duration, 
                 video_label=v_label
             )
             
             # Update frame bank with SCORED candidates
+            # Important: We store the ORIGINAL (clean) frames in the bank, not the timestamped ones
+            # Timestamps are only for Agent's "eyes" during reasoning.
             # Deduplicate: Only add if not present, or if new score is higher
             existing_indices = {item[0]: i for i, item in enumerate(v_curr['frame_bank'])}
 
@@ -553,6 +557,39 @@ class AgentRunner:
             if f_path:
                 frames_info.append({'path': f_path, 'time': t})
         return frames_info
+
+    def _add_timestamp_to_frames(self, frames_info: List[dict]) -> List[dict]:
+        """
+        Add timestamp watermark to temporary copies of frames for Tool Agent visualization.
+        Returns a list of NEW frame paths (temporary).
+        """
+        new_frames = []
+        for f_info in frames_info:
+            src_path = f_info['path']
+            time_val = f_info['time']
+            
+            if not os.path.exists(src_path):
+                continue
+                
+            # Create a temp path in the same directory but with _ts suffix
+            dir_name = os.path.dirname(src_path)
+            file_name = os.path.basename(src_path)
+            name, ext = os.path.splitext(file_name)
+            dst_path = os.path.join(dir_name, f"{name}_ts{ext}")
+            
+            # If already exists (maybe from previous call), just use it
+            if not os.path.exists(dst_path):
+                img = cv2.imread(src_path)
+                if img is not None:
+                    # Add timestamp watermark
+                    text = f"{time_val:.2f}s"
+                    # Yellow text, size 1.0, thickness 2
+                    cv2.putText(img, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2, cv2.LINE_AA)
+                    cv2.imwrite(dst_path, img)
+                    
+            new_frames.append({'path': dst_path, 'time': time_val})
+            
+        return new_frames
 
     def _sample_frames(self, video_path: str, option: int, target_start: float, target_end: float, current_frames: List[dict], duration: float, q_id: str, v_name: str, iteration: int) -> List[dict]:
         output_dir = os.path.join(self.config['paths']['video_frames_dir'], q_id, v_name)
