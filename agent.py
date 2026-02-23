@@ -133,69 +133,8 @@ Decision: Option <number> [Range: <start>, <end>] (Range is optional for Option 
             
         return scores, option, target_start, target_end
 
-    def score_frames(self, question: str, frames: List[str], video_label: str = "ONE of the videos") -> List[float]:
-        """
-        Score each frame's importance for answering the question.
-        Returns a list of 8 floats (0.01-1.00).
-        """
-        prompt_template = self.config['prompts'].get('tool_score_frames')
-        if prompt_template:
-            prompt = prompt_template.replace("{QUESTION}", question) \
-                                    .replace("{VIDEO_LABEL}", video_label) \
-                                    .replace("{NUM_FRAMES}", str(len(frames)))
-        else:
-            prompt = f"""
-You are a Tool Agent. Evaluate the importance of each of the following {len(frames)} frames for answering the question.
-Question: "{question}"
 
-Output exactly {len(frames)} floating-point numbers between 0.01 and 1.00, separated by spaces.
-Example output:
-0.10 0.85 0.40 0.90 0.20 0.15 0.70 0.50
-"""
-        content = []
-        for f in frames:
-            content.append({"type": "image", "image": f})
-        content.append({"type": "text", "text": prompt})
-        
-        messages = [{"role": "user", "content": content}]
-        output = self.Qwen_VL(messages, max_tokens=128)
-        
-        scores = []
-        matches = re.findall(r'\b(0\.\d+|1\.00?|0)\b', output)
-        for m in matches:
-            try:
-                scores.append(float(m))
-            except Exception as e:
-                print(e)
-                
-        # Pad or truncate to match len(frames)
-        while len(scores) < len(frames):
-            scores.append(0.01)
-        scores = scores[:len(frames)]
-        
-        return scores
 
-    def generate_raw_description(self, question: str, frames: List[str], video_label: str = "ONE of the videos") -> str:
-        """
-        Generate a preliminary description based on the frames.
-        """
-        prompt_template = self.config['prompts'].get('tool_generate_raw_description')
-        if prompt_template:
-            prompt = prompt_template.replace("{QUESTION}", question) \
-                                    .replace("{VIDEO_LABEL}", video_label)
-        else:
-            prompt = f"""
-You are a Tool Agent. Based on the provided frames, generate a preliminary description of the visual content relevant to answering the question.
-Question: "{question}"
-Keep the description concise and factual.
-"""
-        content = []
-        for f in frames:
-            content.append({"type": "image", "image": f})
-        content.append({"type": "text", "text": prompt})
-        
-        messages = [{"role": "user", "content": content}]
-        return self.Qwen_VL(messages, max_tokens=256)
 
 
 class DescAgent:
@@ -222,7 +161,13 @@ class DescAgent:
         
         prompt_template = self.config['prompts'].get('desc_combined_action')
         # If no template, use default
-        prompt = f"""
+        if prompt_template:
+            prompt = prompt_template.replace("{QUESTION}", question) \
+                                    .replace("{VIDEO_LABEL}", video_label) \
+                                    .replace("{DESC_OLD}", desc_old) \
+                                    .replace("{OTHER_DESCS_TEXT}", other_descs_text)
+        else:
+            prompt = f"""
 You are a Desc Agent.
 Task 1: Generate a concise description of the new visual content from the provided frames, relevant to the Question.
 Task 2: Evaluate the quality of the FULL description (Previous + New) and decide if we should stop exploring.
