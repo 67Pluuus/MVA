@@ -20,6 +20,10 @@ parameters:
   save_video_frames: false
   number_type: "123"
 
+  use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
+  use_text_answer: true # 是否提供文本描述 (对应 answer_text_only 模版)
+  # 若两者均为 true, 则使用 answer_combined 模版
+
   # Agent 参数
   agent:
     global_max_iterations: 20 # 通过Tool Agent获取信息的全局最大迭代次数
@@ -27,22 +31,24 @@ parameters:
     frame_bank_size: 16 # 每个视频最多取这么多帧
     initial_acceleration: 1.0
 
-  type_watermark: "tag" # 水印类型
-  # 可选模式 (可叠加, 如"tag, trans"):
-  # "tag": 视频标签 + 时间戳 (左上角)
-  # "trans": 插入转场帧 (黑屏+文字预告下一帧)
-  # "temporal": 视频标签 + 底部进度条 (显示当前时间位置)
+  type_watermark: "video_tag temporal_tag trans_frame" # 水印类型
+  # 可选模式 (可叠加, 如"video_tag+temporal_tag"):
+  # "video_tag": 视频标签 (左上角)
+  # "temporal_tag": 时间戳 (左上角)
+  # "trans_frame": 转场帧)
   # "none": 无水印
   priority_score_k: 1.0 # 优先级计算中加速权重k的值，默认1.0
   priority_score_t: 1.0 # 优先级计算中当前分数权重t的值，默认1.0
+  # log_prefix: {Benchmark_name}_{type_watermark}_{date}_{time}
 
 # 提示词
 prompts:
   # 最终回答提示词
-  answer: |
+  # 组合模式 (Full Context)
+  answer_combined: |
     /no_think
     /*Task Description*/
-    You are an answer generation model in a multi-video Q&A task. You will receive multiple keyframes from different videos. Each frame has a label in the upper left corner indicating which video it belongs to (e.g., "Video 1", "Video 2", etc.), and the corresponding timestamp in this video.
+    You are an answer generation model in a multi-video Q&A task. You will receive multiple keyframes from different videos. Each frame has a watermark in the upper left corner indicating which video it belongs to (e.g., "Video 1", "Video 2", etc.), and the corresponding timestamp in this video.
 
     You are also provided with textual descriptions for each video:
     {DESCRIPTIONS}
@@ -60,112 +66,155 @@ prompts:
     **Output Format:**
     Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
 
-  tool_decide_action: |
+  # 仅视觉模式 (Visual Only)
+  answer_visual_only: |
+    /no_think
+    /*Task Description*/
+    You are an answer generation model in a multi-video Q&A task. You will receive multiple keyframes from different videos. Each frame has a watermark in the upper left corner indicating which video it belongs to (e.g., "Video 1", "Video 2", etc.), and the corresponding timestamp in this video.
+
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    Your task is to analyze all the provided keyframes to answer the question. Pay attention to:
+    1. The visual content of each frame
+    2. Which video each frame belongs to (indicated by the watermark and timestamp)
+    3. The differences and similarities between frames from different videos
+    4. The specific visual details relevant to answering the question
+
+    **Output Format:**
+    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+
+  # 仅文本模式 (Text Only)
+  answer_text_only: |
+    /no_think
+    /*Task Description*/
+    You are an answer generation model in a multi-video Q&A task. You are provided with detailed textual descriptions for a series of videos.
+
+    Video Descriptions:
+    {DESCRIPTIONS}
+
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    Your task is to analyze the provided video descriptions to answer the question. Pay attention to:
+    1. The events and details described in each video summary
+    2. The timestamps mentioned in the descriptions
+    3. The differences and similarities between videos based on their descriptions
+    4. The specific details relevant to answering the question
+
+    **Output Format:**
+    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+
+  # 【中文对照】
+  # /* 任务描述 */
+  # 你是多视频问答任务中的工具代理。你将会收到{VIDEO_LABEL}的一组采样帧, 你需要根据这些帧完成以下两项任务：
+  # 1. 评估提供的**帧库**（Frame Bank）中每一帧对回答问题的重要性。
+  # 2. 根据当前的探索状态，决定下一个采样动作。
+  #
+  # 问题："{QUESTION}"
+  # 当前感受野：{START_TIME:.2f}s 到 {END_TIME:.2f}s。
+
+  #
+  # /* 任务 1：评分 */
+  # - 对帧库中的每一帧打分（0.01-1.00）。高分表示包含关键证据。
+  #
+  # /* 任务 2：决定动作 */
+  # 基于当前的视觉信息和问题，选择一个选项（1-6）：
+  # 1. **聚焦中间，替换当前帧**
+  # 2. **聚焦中间，保留当前帧**
+  # 3. **聚焦开头/结尾，替换当前帧**（仅当覆盖全局时）
+  # 4. **聚焦开头/结尾，保留当前帧**（仅当覆盖全局时）
+  # 5. **带偏移的全局均匀采样，替换当前帧**
+  # 6. **终止视频探索**
+  #
+  # /* 输出格式 */
+  # Scores: <帧库分数的空格分隔列表>
+  # Decision: Option <选项数字> [Range: <开始>, <结束>] (选项5/6不需要Range)
+  tool_combined_action: |
     /no_think
     /* Task Description */
-    You are a Tool Agent in a multi-video Q&A task. You will receive a set of sampled frames from **{VIDEO_LABEL}**. Your goal is to navigate through this video to find visual evidence that answers a specific question.
+    You are a Tool Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. Your goal is to actively hunt for visual evidence to answer the question. You need to perform TWO tasks simultaneously:
+    1. Evaluate the evidence value of each frame for answering the question.
+    2. Decide the next sampling action to find missing clues.
+
     Question: "{QUESTION}"
+    Current Receptive Field (Just explored): {START_TIME:.2f}s to {END_TIME:.2f}s.
+    Is Global View: {IS_GLOBAL}
 
-    You are currently observing a set of sampled frames from this video.
-    Current Receptive Field: {START_TIME:.2f}s to {END_TIME:.2f}s (The time range covered by the current frame bank).
-    Video Duration: {VIDEO_DURATION:.2f}s.
-    Global Receptive Field Covered: {IS_GLOBAL}
+    Current Video Gathered Evidence: "{CURRENT_VIDEO_DESC}"
+    Other Videos Evidence:
+    {OTHER_VIDEOS_DESC}
+    **Important: Each frame has a specific timestamp (in seconds) marked in the top-left corner. Use these timestamps to ground your reasoning.**
 
-    Based on the current visual information and the question, you need to decide the next exploration strategy to better locate the answer.
+    /* Task 1: Scoring */
+    - Assign a score (0.01-1.00) to EACH provided frame based on its relevance to the question. 
+    - 1.00: The frame contains critical, direct visual evidence that answers the question.
+    - 0.50: The frame provides useful context but is not decisive.
+    - 0.01: The frame is irrelevant, blurry, or redundant.
 
-    /* Options */
-    1. **Focus Middle, Replace current frames**: 
-       - Select a narrower time range within the current field to zoom in. 
-       - **DISCARD** all current frames and only keep the newly sampled frames from the target range.
-    2. **Focus Middle, Keep current frames**: 
-       - Select a narrower time range within the current field to zoom in.
-       - **RETAIN** current frames and ADD newly sampled frames to the bank.
-    3. **Focus Start/End, Replace current frames** (Only if Global): 
-       - Focus on the beginning or end of the video if the middle part is irrelevant.
-       - **DISCARD** all current frames and only keep the newly sampled frames.
-    4. **Focus Start/End, Keep current frames** (Only if Global): 
-       - Focus on the beginning or end of the video.
-       - **RETAIN** current frames and ADD newly sampled frames.
-    5. **Global Uniform Sampling with offset, Replace current frames**: 
-       - Re-sample uniformly across the entire video duration with a random offset to capture diverse content.
-       - **DISCARD** all current frames and only keep the new uniform frames.
-    6. **Terminate video exploration**: 
-       - Stop exploring this video if you believe no further useful information can be found or you have found sufficient evidence.
+    /* Task 2: Decide Action */
+    Choose one option (1-6) based on current visual info. 
+    **Crucial: For Options 1-4, you MUST specify the target time range [start, end] you want to explore.**
+
+    1. **Focus Middle, Replace current frames**: Explore the middle part of the video; DISCARD current frames.
+    2. **Focus Middle, Keep current frames**: Explore the middle part of the video; RETAIN current frames.
+    3. **Focus Start/End, Replace current frames**: Explore the start/end part of the video; DISCARD current frames. (Valid ONLY when current view covers the whole video)
+    4. **Focus Start/End, Keep current frames**: Explore the start/end part of the video; RETAIN current frames. (Valid ONLY when current view covers the whole video)
+    5. **Global Uniform Sampling with offset, Replace current frames**: Re-sample global; DISCARD current.
+    6. **Terminate video exploration**: Stop if sufficient info found.
 
     /* Output Format */
-    Choose an option (1-6). If choosing 1-4, also specify the target time range [start, end] within the current receptive field.
-    Output exactly in this format:
-    Option: <number>
-    Range: [<start>, <end>]
+    Scores: <space-separated list of scores for the frames>
+    Decision: Option <number> [Range: <start>, <end>] (Range optional for Option 5/6)
 
-  tool_score_frames: |
+  # 【中文对照】
+  # /* 任务描述 */
+  # 你是多视频问答任务中的描述代理。你需要同时完成两项任务：
+  # 1. 为新提供的帧生成简明扼要的描述（**新观察**）。
+  # 2. 评估**完整描述**（先前描述 + 新观察）的质量并决定是否终止。
+  #
+  # 问题："{QUESTION}"
+  # 先前的描述："{DESC_OLD}"
+  # 其他视频的描述：
+  # {OTHER_DESCS_TEXT}
+  #
+  # /* 任务 1：描述 */
+  # - 仅描述新帧中与问题相关的视觉细节。不要重复已知信息。
+  #
+  # /* 任务 2：评估与终止 */
+  # - 评分（0.01-1.00）：完整描述对回答问题的帮助程度。
+  # - 终止检查 1（当前视频）：是否已挖掘完该视频的所有信息？
+  # - 终止检查 2（全局任务）：结合所有视频，是否有足够证据得出结论？
+  #
+  # /* 输出格式 */
+  # New Description: <新帧的描述>
+  # ---
+  # Score: <分数>
+  # Video Terminated: <True/False>
+  # Global Terminated: <True/False>
+  desc_combined_action: |
     /no_think
     /* Task Description */
-    You are a Tool Agent in a multi-video Q&A task. You are analyzing **{VIDEO_LABEL}** to answer a question.
+    You are an Evidence Extraction Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. You need to perform TWO tasks simultaneously:
+    1. Extract visual clues and evidence from the provided frames (**New Evidence**).
+    2. Evaluate the quality of the **Accumulated Evidence** (Previous + New) and decide termination.
+
     Question: "{QUESTION}"
+    Previous Evidence: "{DESC_OLD}"
+    Other Videos Evidence: 
+    {OTHER_DESCS_TEXT}
 
-    You are provided with {NUM_FRAMES} frames from this video. Each frame represents a specific timestamp.
-    Your task is to evaluate the **importance** of each frame in answering the question.
+    /* Task 1: Evidence Extraction */
+    - Identify and record ONLY the visual clues in the frames that are helpful for answering the question. Focus on finding evidence rather than general description. Do not repeat known info from the previous evidence.
 
-    /* Scoring Criteria */
-    - **High Score (>0.7)**: The frame contains critical visual evidence that directly helps answer the question.
-    - **Low Score (<0.3)**: The frame is irrelevant, redundant, or blurry, and should be discarded to improve efficiency.
-    - **Avoid Indecision**: Do NOT give ambiguous scores like 0.5. Be decisive.
-    - High-scoring frames are more likely to be retained in future steps, while low-scoring frames are more likely to be discarded.
+    /* Task 2: Evaluation & Termination */
+    - Score (0.01-1.00): How sufficient is the Accumulated Evidence for answering the question?
+    - Termination Check 1 (Current Video): Should we STOP exploring THIS video? Answer True if (1) we have sufficient evidence from it, OR (2) it appears irrelevant/low-value relative to the question. (True/False)
+    - Termination Check 2 (Global Task): Synthesizing the evidence from ALL videos (this one + others), do we have enough information to answer the question conclusively? (True/False)
 
     /* Output Format */
-    Output exactly {NUM_FRAMES} floating-point numbers between 0.01 and 1.00, separated by spaces.
-    Example output:
-    0.10 0.85 0.40 0.90 0.20 0.15 0.70 0.50
-
-  tool_generate_raw_description: |
-    /no_think
-    /* Task Description */
-    You are a Tool Agent in a multi-video Q&A task. You are analyzing frames from **{VIDEO_LABEL}**.
-    Question: "{QUESTION}"
-
-    You are provided with a set of frames from this video.
-    Your task is to generate a **preliminary description** of the visual content in these frames.
-
-    /* Requirements */
-    - **Focus on the Question**: Describe ONLY the visual details that are relevant to answering the question.
-    - **Be Factural**: Do not hallucinate. Describe what is visible.
-    - **Be Concise**: Provide a dense summary of important visual cues.
-
-    Output the description directly, without any additional text.
-
-  desc_refine_and_evaluate: |
-    /no_think
-    /* Task Description */
-    You are a Description Agent in a multi-video Q&A task. Your goal is to maintain an accurate and concise description of **{VIDEO_LABEL}** to help answer a question.
-    Question: "{QUESTION}"
-
-    /* Context */
-    1. **Previous Description**: "{DESC_OLD}" (Your prior understanding of this video).
-    2. **New Observation**: "{DESC_RAW}" (A preliminary description from new frames).
-    3. **Other Videos**: 
-    {OTHER_DESCS_TEXT} (What we know about other videos in the task).
-
-    /* Tasks */
-    1. **Information Fusion**: 
-       - Merge the "Previous Description" and "New Observation".
-       - Keep critical details that answer the question.
-       - Remove outdated or irrelevant information.
-       - Ensure the new description is coherent.
-
-    2. **Quality Evaluation (Score 0.01-1.00)**:
-       - Rate how helpful the refined description is for answering the question.
-       - High score = The description contains the answer or strong evidence.
-       - Low score = The description is vague or irrelevant.
-
-    3. **Termination Check 1 (Current Video)**:
-       - have we fully mined ALL useful information from THIS video and no longer need to explore it? (True/False)
-
-    4. **Termination Check 2 (Global Task)**:
-       - Combining information from THIS video and OTHER videos, do we have enough evidence to answer the question conclusively? (True/False)
-
-    /* Output Format */
-    Refined Description: <your refined description>
+    New Evidence: <visual clues extracted from new frames>
+    ---
     Score: <score>
     Video Terminated: <True/False>
     Global Terminated: <True/False>

@@ -183,7 +183,7 @@ class AgentRunner:
                 'priority': 1.0, # Will be calculated
                 'status': 'active',
                 'last_acceleration': self.config['parameters']['agent']['initial_acceleration'],
-                'last_score': self.config['parameters']['agent']['initial_score'], 
+                'last_score': 0.5, # Will be initialized by DescAgent
                 'current_frames': [],
                 'frame_bank': []
             }
@@ -192,35 +192,45 @@ class AgentRunner:
             safe_v_name = v_name.replace(" ", "_")
             frames_info = self._extract_uniform_frames(v_path, 8, q_id, safe_v_name)
             
-            # Generate initial description
-            # Pass video_label to describe function to allow template replacement
-            v_label_str = v_name # Use v_name as default label (e.g. Video A)
+            # Use DescAgent to generate initial description and score
+            v_label_str = v_name
+            # For initialization, we don't have other descriptions yet
+            other_descs = {}
             
-            initial_desc = DescribeVideo_qwen3_vl(
-                v_path, 
+            # Pass frames paths
+            frame_paths = [f['path'] for f in frames_info]
+            
+            # Use describe_and_evaluate
+            # Note: describe_and_evaluate expects desc_old. For init, use empty string.
+            desc_new_part, score_new, v_term, g_term = desc_agent.describe_and_evaluate(
                 question, 
-                sampled_frame=self.config['parameters'].get('describe_frames', 8),
-                prompt_template=self.config['prompts'].get('video_description', ""), 
-                device_id=self.device_id,
-                model_path=self.config['models']['main_model_path'],
-                temp_base_dir=self.config['paths'].get('temp_frames_dir', None),
-                node_rank=self.node_rank,
+                frames=frame_paths, 
+                desc_old="", 
+                other_descs=other_descs, 
                 video_label=v_label_str
             )
+            
+            # Format initial description with time range (0 - duration)
+            initial_desc = f"0.00-{v_duration:.2f}: {desc_new_part}"
 
-            for f_info in frames_info:
-                # TextBank['videos'][v_name]['frame_bank'].append((f_info['path'], self.config['parameters']['agent']['initial_score'], f_info['time']))
-                pass # Wait for first iteration to score and add to bank
+            # We don't add frames to bank here, they will be scored by ToolAgent in loop or if terminated
             
             TextBank['videos'][v_name]['current_frames'] = frames_info
             TextBank['videos'][v_name]['description'] = initial_desc
+            TextBank['videos'][v_name]['last_score'] = score_new # Set initial score from model
+            
+            # Check termination immediately
+            if v_term:
+                 TextBank['videos'][v_name]['status'] = 'desc_terminated'
+                 for f_info in frames_info:
+                     TextBank['videos'][v_name]['frame_bank'].append((f_info['path'], 1.0, f_info['time']))
             
             process_logs['initialization'].append({
                 'video': v_name,
                 'status': 'initialized',
                 'initial_description': initial_desc,
                 'acceleration': self.config['parameters']['agent']['initial_acceleration'],
-                'score': self.config['parameters']['agent']['initial_score']
+                'score': score_new
             })
 
         # Phase 2: Main Iteration Loop
@@ -264,6 +274,10 @@ class AgentRunner:
             # 2. Score CURRENT frames (candidates) AND 3. Decide next action in ONE call
             
             existing_bank_frames = v_curr['frame_bank']
+
+            # Prepare descriptions for Tool Agent
+            current_video_desc = v_curr.get('description', "No description yet.")
+            other_videos_desc = {k: v.get('description', 'No description.') for k, v in TextBank['videos'].items() if k != v_curr_name}
             
             # Note: We pass the TIMESTAMPED frames for visual reasoning, but the original frames for metadata
             candidate_scores, option, target_start, target_end = tool_agent.decide_action(
@@ -271,7 +285,9 @@ class AgentRunner:
                 existing_bank_frames, 
                 current_vis_frames, 
                 duration, 
-                video_label=v_label
+                video_label=v_label,
+                current_video_desc=current_video_desc,
+                other_videos_desc=other_videos_desc
             )
             
             # Update frame bank with SCORED candidates
@@ -350,10 +366,23 @@ class AgentRunner:
             )
             
             # Update Description
-            if v_curr['description'] == "Initial observation.":
-                 v_curr['description'] = desc_new_part
+            # Get accurate times from actual sampled frames
+            start_desc = 0.0
+            end_desc = duration
+            if new_frames_info:
+                start_desc = new_frames_info[0]['time']
+                end_desc = new_frames_info[-1]['time']
             else:
-                 v_curr['description'] += f"\n{desc_new_part}"
+                start_desc = target_start
+                end_desc = target_end
+                
+            formatted_desc_part = f"{start_desc:.2f}-{end_desc:.2f}: {desc_new_part}"
+
+            if v_curr['description'] == "Initial observation." or v_curr['description'] == "":
+                 v_curr['description'] = formatted_desc_part
+            else:
+                 # Append new observation to existing history
+                 v_curr['description'] += f"\n{formatted_desc_part}"
 
             old_score = v_curr['last_score']
             acceleration = (score_new - old_score) / old_score if old_score > 0 else 0.0
@@ -424,16 +453,61 @@ class AgentRunner:
         final_descriptions_str = "\n".join(final_descriptions_list)
             
         if not final_frame_paths:
-            return {'error': "No frames selected", 'success': False, 'key': key}
+             # Default check, will be refined below based on mode
+             pass 
+
+        # --- Dynamic Prompt Selection based on input types ---
+        use_visual = self.config['parameters'].get('use_visual_answer', True)
+        use_text = self.config['parameters'].get('use_text_answer', True)
+
+        if not use_visual:
+            final_frame_paths = []
+        if not use_text:
+            final_descriptions_str = ""
+
+        # Validate inputs based on mode
+        if not use_visual and not use_text:
+             return {'error': "Config Error: Both use_visual_answer and use_text_answer are False.", 'success': False, 'key': key}
+        
+        if use_visual and not final_frame_paths:
+             return {'error': "No frames selected (Visual Answer required)", 'success': False, 'key': key}
+             
+        if use_text and not final_descriptions_str and not use_visual:
+             # If text-only mode and no text, we can't proceed.
+             return {'error': "No descriptions available (Text-only Answer required)", 'success': False, 'key': key}
 
         try:
-            current_prompt_template = prompt_override if prompt_override else prompts.get('answer')
+            if prompt_override:
+                current_prompt_template = prompt_override
+            else:
+                # Select template from config
+                if use_visual and use_text:
+                    current_prompt_template = prompts.get('answer_combined')
+                    # Fallback to legacy 'answer' key if 'answer_combined' missing
+                    if not current_prompt_template:
+                        current_prompt_template = prompts.get('answer')
+                elif use_visual and not use_text:
+                    current_prompt_template = prompts.get('answer_visual_only')
+                elif not use_visual and use_text:
+                    current_prompt_template = prompts.get('answer_text_only')
+            
+            # Create a default template if missing (safety net)
+            if not current_prompt_template:
+                if use_visual and not use_text:
+                     current_prompt_template = "Question: {QUESTION}\nOptions: {OPTIONS}\nAnswer based on the images."
+                elif not use_visual and use_text:
+                     current_prompt_template = "Video Descriptions:\n{DESCRIPTIONS}\n\nQuestion: {QUESTION}\nOptions: {OPTIONS}\nAnswer based on descriptions."
+                else:
+                     current_prompt_template = "Video Descriptions:\n{DESCRIPTIONS}\n\nQuestion: {QUESTION}\nOptions: {OPTIONS}\nAnswer based on images and descriptions."
+
+            # Inject Descriptions if needed
             if "{DESCRIPTIONS}" in current_prompt_template:
                 current_prompt_template = current_prompt_template.replace("{DESCRIPTIONS}", final_descriptions_str)
             else:
-                # Fallback if placeholder missing but we want to include descriptions
-                # Prepend to Question
-                current_prompt_template = current_prompt_template.replace("Question:", f"Video Descriptions:\n{final_descriptions_str}\n\nQuestion:")
+                # Fallback: if template doesn't have placeholder but we have text to show (and we are in a text mode), append it.
+                if use_text and final_descriptions_str:
+                    # Prepend description is standard practice
+                    current_prompt_template = current_prompt_template.replace("Question:", f"Video Descriptions:\n{final_descriptions_str}\n\nQuestion:")
 
             output_text = answer(
                 video_frames=final_frame_paths,

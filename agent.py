@@ -17,7 +17,7 @@ class ToolAgent:
         from utils import Qwen_VL
         return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
 
-    def decide_action(self, question: str, frame_bank: List[Tuple[str, float, float]], current_frames_info: List[dict], video_duration: float, video_label: str = "ONE of the videos") -> Tuple[List[float], int, float, float]:
+    def decide_action(self, question: str, frame_bank: List[Tuple[str, float, float]], current_frames_info: List[dict], video_duration: float, video_label: str = "ONE of the videos", current_video_desc: str = "", other_videos_desc: Dict[str, str] = {}) -> Tuple[List[float], int, float, float]:
         """
         Score newly sampled frames (current_frames_info) AND decide the next sampling action in one go.
         
@@ -54,13 +54,20 @@ class ToolAgent:
             bank_times = [f"{x[2]:.2f}s(Score:{x[1]:.2f})" for x in frame_bank]
             bank_context_str = ", ".join(bank_times)
 
+        # Format other videos description
+        other_videos_str = "\n".join([f"{k}: {v}" for k, v in other_videos_desc.items() if v])
+        if not other_videos_str:
+            other_videos_str = "None"
+
         if prompt_template:
             # You would update prompts.yaml to support this
             prompt = prompt_template.replace("{QUESTION}", question) \
                                     .replace("{VIDEO_LABEL}", video_label) \
                                     .replace("{START_TIME}", f"{start_time:.2f}") \
                                     .replace("{END_TIME}", f"{end_time:.2f}") \
-                                    .replace("{IS_GLOBAL}", str(is_global))
+                                    .replace("{IS_GLOBAL}", str(is_global)) \
+                                    .replace("{CURRENT_VIDEO_DESC}", current_video_desc) \
+                                    .replace("{OTHER_VIDEOS_DESC}", other_videos_str)
         else:
              prompt = f"""
 You are a Tool Agent. 
@@ -73,6 +80,9 @@ Video duration: {video_duration:.2f}s.
 Is global receptive field: {is_global}
 
 Existing Frame Bank (Best frames found so far): {bank_context_str}
+Current Video Description: {current_video_desc}
+Other Videos Descriptions:
+{other_videos_str}
 
 Options:
 1. Focus Middle, Replace current frames

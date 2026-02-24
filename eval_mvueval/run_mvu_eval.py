@@ -60,8 +60,14 @@ def main():
     # Create Run ID and Log Folder
     import textwrap
     import datetime
+    
+    # Get params
+    benchmark_name = config.get('paths', {}).get('Benchmark_name', 'MVU_Eval')
+    type_watermark = config.get('parameters', {}).get('type_watermark', 'default').replace(' ', '_')
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_id = f"MVU_Eval_{timestamp}"
+    
+    # Format: {Benchmark_name}_{type_watermark}_{date}_{time}
+    run_id = f"{benchmark_name}_{type_watermark}_{timestamp}"
     
     # Base log directory
     log_dir = os.path.join("log", run_id)
@@ -153,6 +159,9 @@ def main():
     
     with open(final_output_file, 'w', encoding='utf-8') as f:
         json.dump(final_node_results, f, ensure_ascii=False, indent=2)
+    
+    # 打印最终输出文件路径，供外部脚本捕获
+    print(f"OUTPUT_FILE: {os.path.abspath(final_output_file)}")
 
 if __name__ == "__main__":
     main()

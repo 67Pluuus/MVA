@@ -21,15 +21,18 @@ parameters:
   save_video_frames: false
   number_type: "ABC"
 
+  use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
+  use_text_answer: true # 是否提供文本描述 (对应 answer_text_only 模版)
+  # 若两者均为 true, 则使用 answer_combined 模版
+
   # Agent 参数
   agent:
     global_max_iterations: 20 # 通过Tool Agent获取信息的全局最大迭代次数
     skip_iteration: false # 是否跳过初始化后的迭代过程 (仅用于测试或者快速预览)
     frame_bank_size: 16 # 每个视频最多取这么多帧
     initial_acceleration: 1.0
-    initial_score: 0.5
 
-  type_watermark: "video_tag" # 水印类型
+  type_watermark: "video_tag temporal_tag trans_frame" # 水印类型
   # 可选模式 (可叠加, 如"video_tag+temporal_tag"):
   # "video_tag": 视频标签 (左上角)
   # "temporal_tag": 时间戳 (左上角)
@@ -37,6 +40,8 @@ parameters:
   # "none": 无水印
   priority_score_k: 1.0 # 优先级计算中加速权重k的值，默认1.0
   priority_score_t: 1.0 # 优先级计算中当前分数权重t的值，默认1.0
+
+  # log_prefix: {Benchmark_name}_{type_watermark}_{date}_{time}
 
 # 提示词
 prompts:
@@ -60,26 +65,12 @@ prompts:
   #
   # **输出格式：**
   # 仅输出你的答案（例如，“A”，“B”，“C”或“D”），不要有任何额外的解释、推理或文本。
-  video_description: |
-    /no_think
-    /* Task Description */
-    You are a helpful describer in a multi-video Q&A task. You are analyzing frames from **{VIDEO_LABEL}**.
-    Question: "{QUESTION}"
 
-    You are provided with a set of frames from this video.
-    Your task is to generate a **preliminary description** of the visual content in these frames.
-
-    /* Requirements */
-    - **Focus on the Question**: Describe ONLY the visual details that are relevant to answering the question.
-    - **Be Factural**: Do not hallucinate. Describe what is visible.
-    - **Be Concise**: Provide a dense summary of important visual cues.
-
-    Output the description directly, without any additional text.
-
-  answer: |
+  # 组合模式 (Full Context)
+  answer_combined: |
     /no_think
     /*Task Description*/
-    You are an answer generation model in a multi-video Q&A task. You will receive multiple keyframes from different videos. Each frame has a label in the upper left corner indicating which video it belongs to (e.g., "Video A", "Video B", etc.), and the corresponding timestamp in this video.
+    You are an answer generation model in a multi-video Q&A task. You will receive multiple keyframes from different videos. Each frame has a watermark in the upper left corner indicating which video it belongs to (e.g., "Video A", "Video B", etc.), and the corresponding timestamp in this video.
 
     You are also provided with textual descriptions for each video:
     {DESCRIPTIONS}
@@ -93,6 +84,45 @@ prompts:
     3. Which video each frame belongs to (indicated by the label)
     4. The differences and similarities between frames from different videos
     5. The specific details relevant to answering the question
+
+    **Output Format:**
+    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+
+  # 仅视觉模式 (Visual Only)
+  answer_visual_only: |
+    /no_think
+    /*Task Description*/
+    You are an answer generation model in a multi-video Q&A task. You will receive multiple keyframes from different videos. Each frame has a watermark in the upper left corner indicating which video it belongs to (e.g., "Video A", "Video B", etc.), and the corresponding timestamp in this video.
+
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    Your task is to analyze all the provided keyframes to answer the question. Pay attention to:
+    1. The visual content of each frame
+    2. Which video each frame belongs to (indicated by the watermark and timestamp)
+    3. The differences and similarities between frames from different videos
+    4. The specific visual details relevant to answering the question
+
+    **Output Format:**
+    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+
+  # 仅文本模式 (Text Only)
+  answer_text_only: |
+    /no_think
+    /*Task Description*/
+    You are an answer generation model in a multi-video Q&A task. You are provided with detailed textual descriptions for a series of videos.
+
+    Video Descriptions:
+    {DESCRIPTIONS}
+
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    Your task is to analyze the provided video descriptions to answer the question. Pay attention to:
+    1. The events and details described in each video summary
+    2. The timestamps mentioned in the descriptions
+    3. The differences and similarities between videos based on their descriptions
+    4. The specific details relevant to answering the question
 
     **Output Format:**
     Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
@@ -125,14 +155,17 @@ prompts:
   tool_combined_action: |
     /no_think
     /* Task Description */
-    You are a Tool Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. You need to perform TWO tasks simultaneously:
-    1. Evaluate the importance of each frame in the provided **Frame Bank** for answering the question.
-    2. Decide the next sampling action based on the current exploration status.
+    You are a Tool Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. Your goal is to actively hunt for visual evidence to answer the question. You need to perform TWO tasks simultaneously:
+    1. Evaluate the evidence value of each frame for answering the question.
+    2. Decide the next sampling action to find missing clues.
 
     Question: "{QUESTION}"
     Current Receptive Field (Just explored): {START_TIME:.2f}s to {END_TIME:.2f}s.
     Is Global View: {IS_GLOBAL}
-    You are provided with frames from the Frame Bank (shown as images).
+
+    Current Video Gathered Evidence: "{CURRENT_VIDEO_DESC}"
+    Other Videos Evidence:
+    {OTHER_VIDEOS_DESC}
     **Important: Each frame has a specific timestamp (in seconds) marked in the top-left corner. Use these timestamps to ground your reasoning.**
 
     /* Task 1: Scoring */
@@ -153,7 +186,7 @@ prompts:
     6. **Terminate video exploration**: Stop if sufficient info found.
 
     /* Output Format */
-    Scores: <space-separated list of scores for the frame bank>
+    Scores: <space-separated list of scores for the frames>
     Decision: Option <number> [Range: <start>, <end>] (Range optional for Option 5/6)
 
   # 【中文对照】
@@ -184,25 +217,25 @@ prompts:
   desc_combined_action: |
     /no_think
     /* Task Description */
-    You are a Description Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. You need to perform TWO tasks simultaneously:
-    1. Generate a concise description for the NEW provided frames (**New Observation**).
-    2. Evaluate the quality of the **FULL Description** (Previous + New) and decide termination.
+    You are an Evidence Extraction Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. You need to perform TWO tasks simultaneously:
+    1. Extract visual clues and evidence from the provided frames (**New Evidence**).
+    2. Evaluate the quality of the **Accumulated Evidence** (Previous + New) and decide termination.
 
     Question: "{QUESTION}"
-    Previous Description: "{DESC_OLD}"
-    Other Videos: 
+    Previous Evidence: "{DESC_OLD}"
+    Other Videos Evidence: 
     {OTHER_DESCS_TEXT}
 
-    /* Task 1: Description */
-    - Describe ONLY the visual details in the frames relevant to the question. Do not repeat known info.
+    /* Task 1: Evidence Extraction */
+    - Identify and record ONLY the visual clues in the frames that are helpful for answering the question. Focus on finding evidence rather than general description. Do not repeat known info from the previous evidence.
 
     /* Task 2: Evaluation & Termination */
-    - Score (0.01-1.00): How helpful is the FULL description for answering the question?
-    - Termination Check 1 (Current Video): Have we fully mined THIS video? (True/False)
-    - Termination Check 2 (Global Task): Do we have enough evidence from ALL videos to answer conclusively? (True/False)
+    - Score (0.01-1.00): How sufficient is the Accumulated Evidence for answering the question?
+    - Termination Check 1 (Current Video): Should we STOP exploring THIS video? Answer True if (1) we have sufficient evidence from it, OR (2) it appears irrelevant/low-value relative to the question. (True/False)
+    - Termination Check 2 (Global Task): Synthesizing the evidence from ALL videos (this one + others), do we have enough information to answer the question conclusively? (True/False)
 
     /* Output Format */
-    New Description: <description of new frames>
+    New Evidence: <visual clues extracted from new frames>
     ---
     Score: <score>
     Video Terminated: <True/False>
