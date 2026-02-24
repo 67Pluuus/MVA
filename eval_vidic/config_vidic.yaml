@@ -41,7 +41,7 @@ parameters:
   priority_score_k: 1.0 # 优先级计算中加速权重k的值，默认1.0
   priority_score_t: 1.0 # 优先级计算中当前分数权重t的值，默认1.0
 
-  # log_prefix: {Benchmark_name}_{type_watermark}_{date}_{time}
+  # log_prefix: {Benchmark_name}_{date}_{time}_{type_watermark}
 
 # 提示词
 prompts:
