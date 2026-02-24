@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default parameters for CrossVid Evaluation
-NUM_GPUS=1
+NUM_GPUS=8
 
 # Tasks to evaluate
 tasks=("BU" "NC" "CC" "PEA")

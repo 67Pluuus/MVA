@@ -140,18 +140,26 @@ def main():
             
     # Run Pool
     print(f"Starting {len(pool_args)} processes...")
-    try:
-        mp.set_start_method('spawn', force=True)
-    except RuntimeError:
-        pass
-        
+    
     final_node_results = []
-    with mp.Pool(processes=len(pool_args)) as pool:
-        gpu_results_list = pool.map(process_chunk, pool_args)
+    
+    # If only 1 process, run directly to avoid overhead and potential mp issues on Windows
+    if len(pool_args) == 1:
+        print("Running in single process mode (Debug/Single-GPU)...")
+        # Direct call
+        gpu_results_list = [process_chunk(pool_args[0])]
+    else:
+        try:
+            mp.set_start_method('spawn', force=True)
+        except RuntimeError:
+            pass
+            
+        with mp.Pool(processes=len(pool_args)) as pool:
+            gpu_results_list = pool.map(process_chunk, pool_args)
         
-        # Flatten results
-        for res_list in gpu_results_list:
-            final_node_results.extend(res_list)
+    # Flatten results
+    for res_list in gpu_results_list:
+        final_node_results.extend(res_list)
         
     print("Node processing complete.")
 
