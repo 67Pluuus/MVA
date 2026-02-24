@@ -59,7 +59,8 @@ class ToolAgent:
             prompt = prompt_template.replace("{QUESTION}", question) \
                                     .replace("{VIDEO_LABEL}", video_label) \
                                     .replace("{START_TIME}", f"{start_time:.2f}") \
-                                    .replace("{END_TIME}", f"{end_time:.2f}")
+                                    .replace("{END_TIME}", f"{end_time:.2f}") \
+                                    .replace("{IS_GLOBAL}", str(is_global))
         else:
              prompt = f"""
 You are a Tool Agent. 
@@ -123,7 +124,8 @@ Decision: Option <number> [Range: <start>, <end>] (Range is optional for Option 
             if opt_match:
                 option = int(opt_match.group(1))
                 
-            range_match = re.search(r'Range:\s*([\d\.]+),\s*([\d\.]+)', decision_text)
+            # Improved regex to handle various separators (comma, space, hyphen) and optional brackets
+            range_match = re.search(r'Range:.*?([\d\.]+)[,\s\-]+([\d\.]+)', decision_text)
             if range_match:
                 target_start = float(range_match.group(1))
                 target_end = float(range_match.group(2))

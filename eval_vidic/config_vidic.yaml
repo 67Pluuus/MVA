@@ -131,17 +131,24 @@ prompts:
 
     Question: "{QUESTION}"
     Current Receptive Field (Just explored): {START_TIME:.2f}s to {END_TIME:.2f}s.
+    Is Global View: {IS_GLOBAL}
     You are provided with frames from the Frame Bank (shown as images).
+    **Important: Each frame has a specific timestamp (in seconds) marked in the top-left corner. Use these timestamps to ground your reasoning.**
 
     /* Task 1: Scoring */
-    - Assign a score (0.01-1.00) to EACH provided frame in the Frame Bank. High score = critical evidence.
+    - Assign a score (0.01-1.00) to EACH provided frame based on its relevance to the question. 
+    - 1.00: The frame contains critical, direct visual evidence that answers the question.
+    - 0.50: The frame provides useful context but is not decisive.
+    - 0.01: The frame is irrelevant, blurry, or redundant.
 
     /* Task 2: Decide Action */
-    Choose one option (1-6) based on current visual info:
-    1. **Focus Middle, Replace current frames**: Zoom in; DISCARD current frames.
-    2. **Focus Middle, Keep current frames**: Zoom in; RETAIN current frames.
-    3. **Focus Start/End, Replace current frames** (Only if Global): Check start/end; DISCARD current.
-    4. **Focus Start/End, Keep current frames** (Only if Global): Check start/end; RETAIN current.
+    Choose one option (1-6) based on current visual info. 
+    **Crucial: For Options 1-4, you MUST specify the target time range [start, end] you want to explore.**
+
+    1. **Focus Middle, Replace current frames**: Explore the middle part of the video; DISCARD current frames.
+    2. **Focus Middle, Keep current frames**: Explore the middle part of the video; RETAIN current frames.
+    3. **Focus Start/End, Replace current frames**: Explore the start/end part of the video; DISCARD current frames. (Valid ONLY when current view covers the whole video)
+    4. **Focus Start/End, Keep current frames**: Explore the start/end part of the video; RETAIN current frames. (Valid ONLY when current view covers the whole video)
     5. **Global Uniform Sampling with offset, Replace current frames**: Re-sample global; DISCARD current.
     6. **Terminate video exploration**: Stop if sufficient info found.
 
