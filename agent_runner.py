@@ -679,11 +679,15 @@ class AgentRunner:
         return watermarked_paths
 
     def _apply_watermark_to_bank(self, frame_bank: List[tuple], video_idx: int, q_id: str, v_name: str, video_duration: float = 0.0) -> List[str]:
+        # Sort frame bank by timestamp before processing
+        # frame_bank items are (path, score, time)
+        sorted_bank = sorted(frame_bank, key=lambda x: x[2])
+        
         wm_type = self.config['parameters'].get('type_watermark', 'none')
         
         # If disabled or unknown
         if wm_type == 'none':
-            return [f[0] for f in frame_bank]
+            return [f[0] for f in sorted_bank]
             
         output_dir = os.path.join(self.config['paths']['key_frames_dir'], q_id, v_name)
         os.makedirs(output_dir, exist_ok=True)
@@ -695,7 +699,7 @@ class AgentRunner:
         # 1. Apply visual/temporal watermarks first
         processed_frames_with_time = [] 
 
-        for i, (src, score, t_sec) in enumerate(frame_bank, 1):
+        for i, (src, score, t_sec) in enumerate(sorted_bank, 1):
             if os.path.exists(src):
                 img = cv2.imread(src)
                 if img is not None:

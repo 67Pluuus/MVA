@@ -29,9 +29,9 @@ parameters:
     initial_acceleration: 1.0
     initial_score: 0.5
 
-  type_watermark: "visual_tag" # 水印类型
-  # 可选模式 (可叠加, 如"tag, trans"):
-  # "visual_tag": 视频标签 (左上角)
+  type_watermark: "video_tag" # 水印类型
+  # 可选模式 (可叠加, 如"video_tag+temporal_tag"):
+  # "video_tag": 视频标签 (左上角)
   # "temporal_tag": 时间戳 (左上角)
   # "trans_frame": 转场帧)
   # "none": 无水印
@@ -61,41 +61,41 @@ prompts:
   # **输出格式：**
   # 仅输出你的答案（例如，“A”，“B”，“C”或“D”），不要有任何额外的解释、推理或文本。
   video_description: |
-   /no_think
-   /* Task Description */
-   You are a helpful describer in a multi-video Q&A task. You are analyzing frames from **{VIDEO_LABEL}**.
-   Question: "{QUESTION}"
+    /no_think
+    /* Task Description */
+    You are a helpful describer in a multi-video Q&A task. You are analyzing frames from **{VIDEO_LABEL}**.
+    Question: "{QUESTION}"
 
-   You are provided with a set of frames from this video.
-   Your task is to generate a **preliminary description** of the visual content in these frames.
+    You are provided with a set of frames from this video.
+    Your task is to generate a **preliminary description** of the visual content in these frames.
 
-   /* Requirements */
-   - **Focus on the Question**: Describe ONLY the visual details that are relevant to answering the question.
-   - **Be Factural**: Do not hallucinate. Describe what is visible.
-   - **Be Concise**: Provide a dense summary of important visual cues.
+    /* Requirements */
+    - **Focus on the Question**: Describe ONLY the visual details that are relevant to answering the question.
+    - **Be Factural**: Do not hallucinate. Describe what is visible.
+    - **Be Concise**: Provide a dense summary of important visual cues.
 
-   Output the description directly, without any additional text.
-   
+    Output the description directly, without any additional text.
+
   answer: |
-   /no_think
-   /*Task Description*/
-   You are an answer generation model in a multi-video Q&A task. You will receive multiple keyframes from different videos. Each frame has a label in the upper left corner indicating which video it belongs to (e.g., "Video A", "Video B", etc.), and the corresponding timestamp in this video.
+    /no_think
+    /*Task Description*/
+    You are an answer generation model in a multi-video Q&A task. You will receive multiple keyframes from different videos. Each frame has a label in the upper left corner indicating which video it belongs to (e.g., "Video A", "Video B", etc.), and the corresponding timestamp in this video.
 
-   You are also provided with textual descriptions for each video:
-   {DESCRIPTIONS}
+    You are also provided with textual descriptions for each video:
+    {DESCRIPTIONS}
 
-   Question: "{QUESTION}"
-   Options: "{OPTIONS}"
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
 
-   Your task is to analyze all the provided keyframes AND the video descriptions to answer the question. Pay attention to:
-   1. The visual content of each frame
-   2. The textual summary of each video
-   3. Which video each frame belongs to (indicated by the label)
-   4. The differences and similarities between frames from different videos
-   5. The specific details relevant to answering the question
+    Your task is to analyze all the provided keyframes AND the video descriptions to answer the question. Pay attention to:
+    1. The visual content of each frame
+    2. The textual summary of each video
+    3. Which video each frame belongs to (indicated by the label)
+    4. The differences and similarities between frames from different videos
+    5. The specific details relevant to answering the question
 
-   **Output Format:**
-   Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+    **Output Format:**
+    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
 
   # 【中文对照】
   # /* 任务描述 */
@@ -123,31 +123,31 @@ prompts:
   # Scores: <帧库分数的空格分隔列表>
   # Decision: Option <选项数字> [Range: <开始>, <结束>] (选项5/6不需要Range)
   tool_combined_action: |
-   /no_think
-   /* Task Description */
-   You are a Tool Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. You need to perform TWO tasks simultaneously:
-   1. Evaluate the importance of each frame in the provided **Frame Bank** for answering the question.
-   2. Decide the next sampling action based on the current exploration status.
+    /no_think
+    /* Task Description */
+    You are a Tool Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. You need to perform TWO tasks simultaneously:
+    1. Evaluate the importance of each frame in the provided **Frame Bank** for answering the question.
+    2. Decide the next sampling action based on the current exploration status.
 
-   Question: "{QUESTION}"
-   Current Receptive Field (Just explored): {START_TIME:.2f}s to {END_TIME:.2f}s.
-   You are provided with frames from the Frame Bank (shown as images).
+    Question: "{QUESTION}"
+    Current Receptive Field (Just explored): {START_TIME:.2f}s to {END_TIME:.2f}s.
+    You are provided with frames from the Frame Bank (shown as images).
 
-   /* Task 1: Scoring */
-   - Assign a score (0.01-1.00) to EACH provided frame in the Frame Bank. High score = critical evidence.
+    /* Task 1: Scoring */
+    - Assign a score (0.01-1.00) to EACH provided frame in the Frame Bank. High score = critical evidence.
 
-   /* Task 2: Decide Action */
-   Choose one option (1-6) based on current visual info:
-   1. **Focus Middle, Replace current frames**: Zoom in; DISCARD current frames.
-   2. **Focus Middle, Keep current frames**: Zoom in; RETAIN current frames.
-   3. **Focus Start/End, Replace current frames** (Only if Global): Check start/end; DISCARD current.
-   4. **Focus Start/End, Keep current frames** (Only if Global): Check start/end; RETAIN current.
-   5. **Global Uniform Sampling with offset, Replace current frames**: Re-sample global; DISCARD current.
-   6. **Terminate video exploration**: Stop if sufficient info found.
+    /* Task 2: Decide Action */
+    Choose one option (1-6) based on current visual info:
+    1. **Focus Middle, Replace current frames**: Zoom in; DISCARD current frames.
+    2. **Focus Middle, Keep current frames**: Zoom in; RETAIN current frames.
+    3. **Focus Start/End, Replace current frames** (Only if Global): Check start/end; DISCARD current.
+    4. **Focus Start/End, Keep current frames** (Only if Global): Check start/end; RETAIN current.
+    5. **Global Uniform Sampling with offset, Replace current frames**: Re-sample global; DISCARD current.
+    6. **Terminate video exploration**: Stop if sufficient info found.
 
-   /* Output Format */
-   Scores: <space-separated list of scores for the frame bank>
-   Decision: Option <number> [Range: <start>, <end>] (Range optional for Option 5/6)
+    /* Output Format */
+    Scores: <space-separated list of scores for the frame bank>
+    Decision: Option <number> [Range: <start>, <end>] (Range optional for Option 5/6)
 
   # 【中文对照】
   # /* 任务描述 */
@@ -175,28 +175,28 @@ prompts:
   # Video Terminated: <True/False>
   # Global Terminated: <True/False>
   desc_combined_action: |
-   /no_think
-   /* Task Description */
-   You are a Description Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. You need to perform TWO tasks simultaneously:
-   1. Generate a concise description for the NEW provided frames (**New Observation**).
-   2. Evaluate the quality of the **FULL Description** (Previous + New) and decide termination.
+    /no_think
+    /* Task Description */
+    You are a Description Agent in a multi-video Q&A task. You will receive a series of frames sampled from {VIDEO_LABEL}. You need to perform TWO tasks simultaneously:
+    1. Generate a concise description for the NEW provided frames (**New Observation**).
+    2. Evaluate the quality of the **FULL Description** (Previous + New) and decide termination.
 
-   Question: "{QUESTION}"
-   Previous Description: "{DESC_OLD}"
-   Other Videos: 
-   {OTHER_DESCS_TEXT}
+    Question: "{QUESTION}"
+    Previous Description: "{DESC_OLD}"
+    Other Videos: 
+    {OTHER_DESCS_TEXT}
 
-   /* Task 1: Description */
-   - Describe ONLY the visual details in the frames relevant to the question. Do not repeat known info.
+    /* Task 1: Description */
+    - Describe ONLY the visual details in the frames relevant to the question. Do not repeat known info.
 
-   /* Task 2: Evaluation & Termination */
-   - Score (0.01-1.00): How helpful is the FULL description for answering the question?
-   - Termination Check 1 (Current Video): Have we fully mined THIS video? (True/False)
-   - Termination Check 2 (Global Task): Do we have enough evidence from ALL videos to answer conclusively? (True/False)
+    /* Task 2: Evaluation & Termination */
+    - Score (0.01-1.00): How helpful is the FULL description for answering the question?
+    - Termination Check 1 (Current Video): Have we fully mined THIS video? (True/False)
+    - Termination Check 2 (Global Task): Do we have enough evidence from ALL videos to answer conclusively? (True/False)
 
-   /* Output Format */
-   New Description: <description of new frames>
-   ---
-   Score: <score>
-   Video Terminated: <True/False>
-   Global Terminated: <True/False>
+    /* Output Format */
+    New Description: <description of new frames>
+    ---
+    Score: <score>
+    Video Terminated: <True/False>
+    Global Terminated: <True/False>
