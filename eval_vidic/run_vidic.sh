@@ -19,7 +19,7 @@ NODE_RANK=0
 GPUS=$(seq -s, 0 $((NUM_GPUS-1))) # 默认使用所有gpu, 如果需要指定gpu, 可以修改为 GPUS="0,1" 这样的格式
 
 echo "--------------------------------------------------------"
-echo "Starting ViDiC-1K Evaluation (Distributed Mode)"
+echo "Starting ViDiC-1K Evaluation"
 echo "--------------------------------------------------------"
 echo "Config: ${CONFIG_PATH}"
 echo "Node:   ${NODE_RANK}"

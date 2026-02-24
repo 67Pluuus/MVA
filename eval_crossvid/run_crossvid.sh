@@ -23,7 +23,7 @@ for task in "${tasks[@]}"; do
     CONFIG_PATH="eval_crossvid/${task}.yaml"
 
     echo "--------------------------------------------------------"
-    echo "Starting Crossvid Evaluation (Distributed Mode) for Task: $task"
+    echo "Starting Crossvid Evaluation for Task: $task"
     echo "--------------------------------------------------------"
     echo "Config: ${CONFIG_PATH}"
     echo "Node:   ${NODE_RANK} / ${NUM_NODES}"
