@@ -209,16 +209,16 @@ Global Terminated: <True/False>
         video_terminated = False
         global_terminated = False
         
-        # Parse Description
-        desc_match = re.search(r'New Description:\s*(.*?)---', output, re.DOTALL)
+        # Parse Description (Support both "New Description" and "New Evidence")
+        desc_match = re.search(r'(New Description|New Evidence):\s*(.*?)---', output, re.DOTALL | re.IGNORECASE)
         if desc_match:
-            desc_new = desc_match.group(1).strip()
+            desc_new = desc_match.group(2).strip()
         else:
             # Fallback if separator missing
-            desc_match = re.search(r'New Description:\s*(.*)', output, re.DOTALL)
+            desc_match = re.search(r'(New Description|New Evidence):\s*(.*)', output, re.DOTALL | re.IGNORECASE)
             if desc_match:
                 # Be careful not to include Score line
-                all_text = desc_match.group(1)
+                all_text = desc_match.group(2)
                 score_idx = all_text.find("Score:")
                 if score_idx != -1:
                     desc_new = all_text[:score_idx].strip()
