@@ -53,6 +53,7 @@ def main():
     parser.add_argument('--gpus', type=str, default='0', help='Comma-separated list of GPU IDs to use (e.g., "0,1,2,3")')
     parser.add_argument('--num_nodes', type=int, default=1, help='Total number of nodes')
     parser.add_argument('--node_rank', type=int, default=0, help='Rank of current node')
+    parser.add_argument('--task', type=str, default="BU", help='Task name (e.g., NC, PEA, BU)')
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -65,9 +66,10 @@ def main():
     benchmark_name = config.get('paths', {}).get('Benchmark_name', 'CrossVid')
     type_watermark = config.get('parameters', {}).get('type_watermark', 'default').replace(' ', '_')
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    task = args.task
     
-    # Format: {Benchmark_name}_{type_watermark}_{date}_{time}
-    run_id = f"{benchmark_name}_{type_watermark}_{timestamp}"
+    # Format: {Benchmark_name}_{task}{type_watermark}_{date}_{time}
+    run_id = f"{benchmark_name}_{task}_{type_watermark}_{timestamp}"
     
     # Base log directory
     log_dir = os.path.join("log", run_id)
@@ -159,6 +161,9 @@ def main():
     
     with open(final_output_file, 'w', encoding='utf-8') as f:
         json.dump(final_node_results, f, ensure_ascii=False, indent=2)
+    
+    # Print the final output file path for external scripts to capture
+    print(f"OUTPUT_FILE: {os.path.abspath(final_output_file)}")
 
 if __name__ == "__main__":
     main()
