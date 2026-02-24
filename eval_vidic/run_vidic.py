@@ -66,8 +66,8 @@ def main():
     type_watermark = config.get('parameters', {}).get('type_watermark', 'default').replace(' ', '_')
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Format: {Benchmark_name}_{type_watermark}_{date}_{time}
-    run_id = f"{benchmark_name}_{type_watermark}_{timestamp}"
+    # Format: {Benchmark_name}_{date}_{time}_{type_watermark}
+    run_id = f"{benchmark_name}_{timestamp}_{type_watermark}"
     
     # Base log directory
     log_dir = os.path.join("log", run_id)
