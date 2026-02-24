@@ -68,7 +68,11 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
     model, processor = init(model_path=model_path, device_id=device_id)
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     
-    images, videos, video_kwargs = process_vision_info(messages, return_video_kwargs=True, return_video_metadata=True)
+    # Qwen2.5 uses patch size 14, Qwen3 uses 16 (assumed from previous code)
+    if "Qwen2.5" in model_path:
+        images, videos, video_kwargs = process_vision_info(messages, return_video_kwargs=True, return_video_metadata=True)
+    else:
+        images, videos, video_kwargs = process_vision_info(messages, image_patch_size=16, return_video_kwargs=True, return_video_metadata=True)
 
     if videos is not None:
         videos, video_metadatas = zip(*videos)
