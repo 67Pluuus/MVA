@@ -5,7 +5,7 @@ import cv2
 import os
 from functools import lru_cache
 
-from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
+from transformers import Qwen3VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration, AutoProcessor
 from qwen_vl_utils import process_vision_info
 
 # 全局模型缓存，按GPU ID存储
@@ -36,11 +36,18 @@ def init(model_path: str="Qwen3-VL-2B-Instruct", device_id: int=None):
     # But simplifying: always trust cache if device_id provided.
     
     try:
-        model = Qwen3VLForConditionalGeneration.from_pretrained(
-            model_path, 
-            dtype="auto",
-            device_map=device_map
-        )
+        if "Qwen3" in model_path:
+            model = Qwen3VLForConditionalGeneration.from_pretrained(
+                model_path, 
+                dtype="auto",
+                device_map=device_map
+            )
+        elif "Qwen2.5" in model_path:
+            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                model_path, 
+                dtype="auto",
+                device_map=device_map
+            )
 
         processor = AutoProcessor.from_pretrained(model_path)
     except Exception as e:
@@ -60,7 +67,8 @@ def init(model_path: str="Qwen3-VL-2B-Instruct", device_id: int=None):
 def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tokens=2048):
     model, processor = init(model_path=model_path, device_id=device_id)
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    images, videos, video_kwargs = process_vision_info(messages, image_patch_size=16, return_video_kwargs=True, return_video_metadata=True)
+    
+    images, videos, video_kwargs = process_vision_info(messages, return_video_kwargs=True, return_video_metadata=True)
 
     if videos is not None:
         videos, video_metadatas = zip(*videos)
@@ -82,95 +90,95 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
 
 
 
-def DescribeVideo_qwen3_vl(video_path, question, sampled_frame=None, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", node_rank=None, temp_base_dir=None, video_label="ONE of the videos"):
-    video_name = os.path.splitext(os.path.basename(video_path))[0]
+# def DescribeVideo_qwen3_vl(video_path, question, sampled_frame=None, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", node_rank=None, temp_base_dir=None, video_label="ONE of the videos"):
+#     video_name = os.path.splitext(os.path.basename(video_path))[0]
     
-    cap = cv2.VideoCapture(video_path)
+#     cap = cv2.VideoCapture(video_path)
     
-    if not cap.isOpened():
-        print("Failed to open video file")
-        return "Video load failed."
+#     if not cap.isOpened():
+#         print("Failed to open video file")
+#         return "Video load failed."
     
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    # Safety check for empty video
-    if frame_count == 0:
-        return "Empty video."
+#     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#     # Safety check for empty video
+#     if frame_count == 0:
+#         return "Empty video."
         
-    frame_indices = [int(frame_count * i / sampled_frame) for i in range(sampled_frame)]
+#     frame_indices = [int(frame_count * i / sampled_frame) for i in range(sampled_frame)]
     
-    # Create unique temp directory
-    # Format: [base]/[video_name]_[timestamp]_[node]_[gpu] to ensure uniqueness
-    import time
-    timestamp = int(time.time() * 1000)
+#     # Create unique temp directory
+#     # Format: [base]/[video_name]_[timestamp]_[node]_[gpu] to ensure uniqueness
+#     import time
+#     timestamp = int(time.time() * 1000)
     
-    if temp_base_dir:
-        # If base dir provided, use it
-        dir_name = f"{video_name}_{timestamp}_n{node_rank}_g{device_id}"
-        temp_dir = os.path.join(temp_base_dir, dir_name)
-    else:
-        # Valid fallback if not using new log structure
-        pid = os.getpid()
-        if node_rank is not None and device_id is not None:
-            temp_dir = f"temp_frames_node_{node_rank}_gpu_{device_id}_{pid}"
-        elif device_id is not None:
-            temp_dir = f"temp_frames_gpu_{device_id}_{pid}"
-        else:
-            temp_dir = f"temp_frames_{pid}"
+#     if temp_base_dir:
+#         # If base dir provided, use it
+#         dir_name = f"{video_name}_{timestamp}_n{node_rank}_g{device_id}"
+#         temp_dir = os.path.join(temp_base_dir, dir_name)
+#     else:
+#         # Valid fallback if not using new log structure
+#         pid = os.getpid()
+#         if node_rank is not None and device_id is not None:
+#             temp_dir = f"temp_frames_node_{node_rank}_gpu_{device_id}_{pid}"
+#         elif device_id is not None:
+#             temp_dir = f"temp_frames_gpu_{device_id}_{pid}"
+#         else:
+#             temp_dir = f"temp_frames_{pid}"
     
-    os.makedirs(temp_dir, exist_ok=True)
-    saved_frames = []
-    output_text = "Error generating description."
+#     os.makedirs(temp_dir, exist_ok=True)
+#     saved_frames = []
+#     output_text = "Error generating description."
     
-    try:
-        try:
-            for idx, frame_idx in enumerate(frame_indices, 1):
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-                ret, frame = cap.read()
-                if ret:
-                    frame_path = os.path.join(temp_dir, f"frame_{idx}.jpg")
-                    cv2.imwrite(frame_path, frame)
-                    saved_frames.append(frame_path)
-        finally:
-            cap.release()
+#     try:
+#         try:
+#             for idx, frame_idx in enumerate(frame_indices, 1):
+#                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+#                 ret, frame = cap.read()
+#                 if ret:
+#                     frame_path = os.path.join(temp_dir, f"frame_{idx}.jpg")
+#                     cv2.imwrite(frame_path, frame)
+#                     saved_frames.append(frame_path)
+#         finally:
+#             cap.release()
 
-        content = []
-        for i in saved_frames:
-            content.append({
-                "type": "image",
-                "image": i
-            })
+#         content = []
+#         for i in saved_frames:
+#             content.append({
+#                 "type": "image",
+#                 "image": i
+#             })
         
-        if prompt_template:
-            prompt_text = prompt_template.replace("{QUESTION}", question).replace("{VIDEO_LABEL}", video_label)
-        else:
-            prompt_text = f"Describe the video content relevant to the question: {question}"
+#         if prompt_template:
+#             prompt_text = prompt_template.replace("{QUESTION}", question).replace("{VIDEO_LABEL}", video_label)
+#         else:
+#             prompt_text = f"Describe the video content relevant to the question: {question}"
 
-        content.append({
-            "type": "text",
-            "text": prompt_text
-        })
+#         content.append({
+#             "type": "text",
+#             "text": prompt_text
+#         })
 
-        messages = [
-            {
-                "role": "user",
-                "content": content
-            }
-        ]
+#         messages = [
+#             {
+#                 "role": "user",
+#                 "content": content
+#             }
+#         ]
         
-        try:
-            output_text = Qwen_VL(messages, device_id=device_id, model_path=model_path, max_tokens=512)
-        except Exception as e:
-            print(f"Error in DescribeVideo: {e}")
+#         try:
+#             output_text = Qwen_VL(messages, device_id=device_id, model_path=model_path, max_tokens=512)
+#         except Exception as e:
+#             print(f"Error in DescribeVideo: {e}")
             
-    finally:
-        # Cleanup - 确保临时目录被清理，即使在异常情况下也尝试清理
-        try:
-            import shutil
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-        except Exception as e:
-            # 如果清理失败，至少记录警告（多进程环境下可能重复打印）
-            print(f"Warning: Failed to clean up temp directory {temp_dir}: {e}")
+#     finally:
+#         # Cleanup - 确保临时目录被清理，即使在异常情况下也尝试清理
+#         try:
+#             import shutil
+#             if os.path.exists(temp_dir):
+#                 shutil.rmtree(temp_dir)
+#         except Exception as e:
+#             # 如果清理失败，至少记录警告（多进程环境下可能重复打印）
+#             print(f"Warning: Failed to clean up temp directory {temp_dir}: {e}")
         
     return output_text
 

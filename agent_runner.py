@@ -10,7 +10,7 @@ import math
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
-from utils import DescribeVideo_qwen3_vl, init, answer, Qwen_VL
+from utils import init, answer
 from agent import ToolAgent, DescAgent
 import cv2
 from PIL import Image
