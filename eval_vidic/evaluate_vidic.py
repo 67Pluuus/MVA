@@ -4,8 +4,8 @@ import sys
 import os
 
 # 默认路径
-DEFAULT_PREDICT = r"eval_vidic\node_0_final_results.json"
-DEFAULT_GT = r"Benchmark/ViDiC-1K/test/metadata.json"
+DEFAULT_PREDICT = "eval_vidic/node_0_final_results.json"
+DEFAULT_GT = "Benchmark/ViDiC-1K/test/metadata.json"
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate ViDiC results")
