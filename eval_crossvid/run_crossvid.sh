@@ -18,14 +18,14 @@ echo "Tasks: ${tasks[*]}"
 echo "--------------------------------------------------------"
 
 for task in "${tasks[@]}"; do
-    CONFIG_PATH="eval_crossvid/${task}.yaml"
+    CONFIG_PATH="MVA/eval_crossvid/${task}.yaml"
     OUTPUT_LOG="crossvid_${task}_run_output.log"
     
     echo "Processing Task: ${task}"
     echo "Config: ${CONFIG_PATH}"
     
     # Run the python script
-    PYTHONPATH=. python eval_crossvid/run_crossvid.py \
+    PYTHONPATH=. python MVA/eval_crossvid/run_crossvid.py \
         --config "${CONFIG_PATH}" \
         --gpus "${GPUS}" \
         --num_nodes "${NUM_NODES}" \
@@ -49,7 +49,7 @@ for task in "${tasks[@]}"; do
                 echo "GT File: ${GT_FILE}"
                 
                 # Check if evaluate script exists
-                EVAL_SCRIPT="eval_crossvid/evaluate_${task}.py"
+                EVAL_SCRIPT="MVA/eval_crossvid/evaluate_${task}.py"
                 if [ -f "${EVAL_SCRIPT}" ]; then
                     python "${EVAL_SCRIPT}" --predict "${PREDICT_FILE}" --gt "${GT_FILE}"
                 else
@@ -57,7 +57,7 @@ for task in "${tasks[@]}"; do
                 fi
              else
                 echo "Warning: Could not extract GT file path from config. Trying default..."
-                python "eval_crossvid/evaluate_${task}.py" --predict "${PREDICT_FILE}"
+                python "MVA/eval_crossvid/evaluate_${task}.py" --predict "${PREDICT_FILE}"
              fi
         else
             echo "Warning: Could not find output file path in logs. Evaluation skipped for ${task}."

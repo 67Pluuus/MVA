@@ -4,8 +4,8 @@ import sys
 import os
 
 # 默认路径
-DEFAULT_PREDICT = r"D:\Desktop\毕设\Agent\eval_mvueval\result.json"
-DEFAULT_GT = r"Benchmark/CrossVid/QA/NC.json"
+DEFAULT_PREDICT = r"D:\Desktop\毕设\ECCV\Agent\eval_crossvid\node_0_final_results.json"
+DEFAULT_GT = r"D:\Desktop\毕设\ECCV\Benchmark\CrossVid\QA\NC_1.json"
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate NC results")
@@ -85,19 +85,30 @@ def main():
 
     # --- 输出结果 ---
     print(f"--- NC Evaluation Results ---")
-    
-    # 构造表头 (第一行)
-    sorted_tasks = sorted(task_stats.keys())
-    header = ["Task", "Accuracy"]
-    
+    print(f"Total Count: {total_count}")
+    print(f"Total Correct: {total_correct}")
+
     # 计算总体准确率
     overall_acc = total_correct / total_count if total_count > 0 else 0
-    print(f"Overall Accuracy: {overall_acc:.2%}")
+    if total_count > 0:
+        print(f"Overall Accuracy: {overall_acc:.2%}")
+    else:
+        print(f"Overall Accuracy: 0.00%")
+
+    sorted_tasks = sorted(task_stats.keys())
     
+    # 构造表头 (第一行)
+    header = ["Overall"] + sorted_tasks
+    print(", ".join(header))
+
+    # 构造准确率行 (第二行)
+    accuracies = [f"{overall_acc:.2%}"]
     for task in sorted_tasks:
         stats = task_stats[task]
         acc = stats['correct'] / stats['total'] if stats['total'] > 0 else 0
-        print(f"Task {task}: {acc:.2%} ({stats['correct']}/{stats['total']})")
+        accuracies.append(f"{acc:.2%}")
+
+    print(", ".join(accuracies))
 
 if __name__ == "__main__":
     main()

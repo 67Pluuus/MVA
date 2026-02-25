@@ -7,33 +7,6 @@ import os
 DEFAULT_PREDICT = r"D:\Desktop\毕设\Agent\eval_vidic\node_0_final_results.json"
 DEFAULT_GT = r"Benchmark/ViDiC-1K/test/metadata.json"
 
-def print_as_table(headers, data_rows):
-    """手动打印表格，不使用tabulate"""
-    if not data_rows:
-        print("No data to display.")
-        return
-
-    # 计算每列的最大宽度
-    num_columns = len(headers)
-    col_widths = [len(h) for h in headers]
-    for row in data_rows:
-        for i, cell in enumerate(row):
-            if len(str(cell)) > col_widths[i]:
-                col_widths[i] = len(str(cell))
-
-    # 打印表头
-    header_line = " | ".join(headers[i].ljust(col_widths[i]) for i in range(num_columns))
-    print(header_line)
-
-    # 打印分隔线
-    separator_line = "-+-".join("-" * col_widths[i] for i in range(num_columns))
-    print(separator_line)
-
-    # 打印数据行
-    for row in data_rows:
-        data_line = " | ".join(str(row[i]).ljust(col_widths[i]) for i in range(num_columns))
-        print(data_line)
-
 def main():
     parser = argparse.ArgumentParser(description="Evaluate ViDiC results")
     parser.add_argument("--predict", type=str, default=DEFAULT_PREDICT, help="Path to prediction JSON file")
@@ -111,35 +84,76 @@ def main():
             clas_stats[clas]['correct'] += 1
             total_correct += 1
 
-    # --- 输出结果 ---
+    # --- 输出结果 (Format matching the image) ---
 
-    # 1. 输出总体正确率
-    overall_acc = total_correct / total_count if total_count > 0 else 0
-    print("--- Overall Accuracy ---")
-    print(f"{overall_acc:.2%}\n")
+    # Calculate metrics
+    avg_acc = total_correct / total_count if total_count > 0 else 0
 
+    # Task metrics: Difference, Similarity
+    # Note: In the file keys are usually "Difference-..." or "Similarity-..."
+    # We split them into `task` and `clas` above.
+    # Expecting task keys: "Difference", "Similarity"
+    
+    diff_stats = task_stats.get("Difference", {'correct': 0, 'total': 0})
+    diff_acc = diff_stats['correct'] / diff_stats['total'] if diff_stats['total'] > 0 else 0
+    
+    sim_stats = task_stats.get("Similarity", {'correct': 0, 'total': 0})
+    sim_acc = sim_stats['correct'] / sim_stats['total'] if sim_stats['total'] > 0 else 0
 
-    # 2. 输出按 Task 分类的结果
-    print("--- Accuracy by Task ---")
-    sorted_tasks = sorted(task_stats.keys())
-    task_table_data = []
-    for task in sorted_tasks:
-        stats = task_stats[task]
+    # Class metrics mapping
+    # Image headers: Subject | Motion | Pos. | Backgr. | Cam. | Style | Tech.
+    # JSON keys:    subject | motion | position | background | camera | style | playback technique
+    
+    class_mapping = {
+        "Subject": "subject",
+        "Motion": "motion",
+        "Pos.": "position",
+        "Backgr.": "background",
+        "Cam.": "camera",
+        "Style": "style",
+        "Tech.": "playback technique"
+    }
+    
+    class_accs = {}
+    for header, key in class_mapping.items():
+        stats = clas_stats.get(key, {'correct': 0, 'total': 0})
         acc = stats['correct'] / stats['total'] if stats['total'] > 0 else 0
-        task_table_data.append([task, stats['correct'], stats['total'], f"{acc:.2%}"])
-    print_as_table(["Task", "Correct", "Total", "Accuracy"], task_table_data)
-    print("\n")
+        class_accs[header] = acc
 
+    # Construct the table
+    # Columns: Model | Avg. | Diff. | Sim. | Subject | Motion | Pos. | Backgr. | Cam. | Style | Tech.
+    
+    headers = ["Model", "Avg.", "Diff.", "Sim."] + list(class_mapping.keys())
+    
+    # We don't have a model name effectively, providing a placeholder or empty string
+    model_name = "Model" 
+    
+    # Format percentages
+    def fmt(val):
+        return f"{val*100:.1f}"
 
-    # 3. 输出按 Clas 分类的结果
-    print("--- Accuracy by Clas ---")
-    sorted_clas = sorted(clas_stats.keys())
-    clas_table_data = []
-    for c in sorted_clas:
-        stats = clas_stats[c]
-        acc = stats['correct'] / stats['total'] if stats['total'] > 0 else 0
-        clas_table_data.append([c, stats['correct'], stats['total'], f"{acc:.2%}"])
-    print_as_table(["Clas", "Correct", "Total", "Accuracy"], clas_table_data)
+    row_val = [
+        model_name,
+        fmt(avg_acc),
+        fmt(diff_acc),
+        fmt(sim_acc),
+    ]
+    for header in class_mapping.keys():
+        row_val.append(fmt(class_accs[header]))
+
+    # Print nicely formatted pipe-separated table
+    
+    # Calculate widths for alignment (optional but nice)
+    # Just printing standard Markdown/Pipe table format
+    
+    header_str = " | ".join(headers)
+    separator_str = " | ".join(["---"] * len(headers))
+    row_str = " | ".join(row_val)
+    
+    print(header_str)
+    print(separator_str)
+    print(row_str)
+
 
 if __name__ == "__main__":
     main()
