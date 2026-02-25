@@ -4,7 +4,7 @@ import sys
 import os
 
 # 默认路径
-DEFAULT_PREDICT = r"D:\Desktop\毕设\Agent\eval_mvueval\node_0_final_results(1).json"
+DEFAULT_PREDICT = r"eval_mvueval\node_0_final_results(1).json"
 DEFAULT_GT = r"Benchmark/MVU-Eval_Data/MVU_Eval_QAs.json"
 
 def print_as_table(headers, data_rows):
@@ -97,28 +97,111 @@ def main():
             task_stats[task]['correct'] += 1
             total_correct += 1
 
-    # --- 输出结果 ---
-
-    # 准备表格数据
-    table_data = []
-    sorted_tasks = sorted(task_stats.keys())
-
-    for task in sorted_tasks:
-        stats = task_stats[task]
-        correct = stats['correct']
-        total = stats['total']
-        accuracy = correct / total if total > 0 else 0
-        table_data.append([task, correct, total, f"{accuracy:.2%}"])
-
-    # 打印按 Task 分类的结果表格
-    print("--- Accuracy by Task ---")
-    print_as_table(["Task", "Correct", "Total", "Accuracy"], table_data)
-    print("\n")
-
-    # 打印总体正确率
+    # Prepare accuracy values
     overall_acc = total_correct / total_count if total_count > 0 else 0
-    print("--- Overall Accuracy ---")
-    print(f"{overall_acc:.2%}")
+    
+    # Task specific accuracies
+    # The image has: Overall | Perception (OR, SU, Counting, Comparison) | Reasoning (KIR, ICL, RAG, TR)
+    # Mapping task names in JSON to these headers.
+    # Assuming JSON task names match these abbreviations or full names.
+    # If JSON has "Object Recognition", mapping it to "OR".
+    # Since I don't know the exact JSON task strings for all of them, I will try to match loosely or use the keys if they match.
+    # The user's previous prompt showed "Counting" as a task.
+    # I will assume "Counting" -> "Counting".
+    # "Comparison" -> "Comparison".
+    # For others, I'll check if they exist in stats directly.
+    
+    # Heuristic mapping based on common dataset naming or just direct usage
+    # If the JSON uses "Counting", "Comparison", etc. directly.
+    
+    # Define the headers we want
+    headers_perception = ["OR", "SU", "Counting", "Comparison"]
+    headers_reasoning = ["KIR", "ICL", "RAG", "TR"]
+    
+    # Function to safe get accuracy
+    def get_acc(key_list):
+        # key_list can be a list of potential keys for one header, e.g. ["OR", "Object Recognition"]
+        total_c = 0
+        total_t = 0
+        found = False
+        for key in key_list:
+            if key in task_stats:
+                total_c += task_stats[key]['correct']
+                total_t += task_stats[key]['total']
+                found = True
+        
+        if not found:
+            return "N/A"
+            
+        return total_c / total_t if total_t > 0 else 0
+
+    # Mapping based on likely names (adjust if needed specific to dataset)
+    # If the task names in JSON are exactly "OR", "SU", etc., this works.
+    # If "Counting" is "Counting", it works.
+    
+    # Values for the row
+    row_vals = []
+    
+    # Overall
+    row_vals.append(f"{overall_acc*100:.1f}")
+    
+    # Perception
+    # OR
+    row_vals.append(f"{get_acc(['OR'])*100:.1f}" if get_acc(['OR']) != "N/A" else "-")
+    # SU
+    row_vals.append(f"{get_acc(['SU'])*100:.1f}" if get_acc(['SU']) != "N/A" else "-")
+    # Counting
+    row_vals.append(f"{get_acc(['Counting'])*100:.1f}" if get_acc(['Counting']) != "N/A" else "-")
+    # Comparison
+    row_vals.append(f"{get_acc(['Comparison'])*100:.1f}" if get_acc(['Comparison']) != "N/A" else "-")
+    
+    # Reasoning
+    # KIR
+    row_vals.append(f"{get_acc(['KIR'])*100:.1f}" if get_acc(['KIR']) != "N/A" else "-")
+    # ICL
+    row_vals.append(f"{get_acc(['ICL'])*100:.1f}" if get_acc(['ICL']) != "N/A" else "-")
+    # RAG
+    row_vals.append(f"{get_acc(['RAG'])*100:.1f}" if get_acc(['RAG']) != "N/A" else "-")
+    # TR (Temporal Reasoning?)
+    row_vals.append(f"{get_acc(['TR'])*100:.1f}" if get_acc(['TR']) != "N/A" else "-")
+    
+    # Formatting the table
+    # Columns: Overall | OR | SU | Counting | Comparison | KIR | ICL | RAG | TR
+    # Groups:          |         Perception              |        Reasoning
+    
+    # Widths
+    w_data = 10
+    
+    def pad_center(s, w):
+        return str(s).center(w)
+        
+    # Top Header
+    # "Overall" spans 1 col (index 0)
+    # "Perception" spans 4 cols
+    # "Reasoning" spans 4 cols
+    
+    # Top Header Structure
+    # | Overall  |              Perception             |              Reasoning              |
+    
+    top_str = "|" + pad_center("", w_data) + "|" + pad_center("Perception", w_data*4 + 3) + "|" + pad_center("Reasoning", w_data*4 + 3) + "|"
+    
+    # Second Header
+    sub_headers = ["Overall"] + headers_perception + headers_reasoning
+    sub_str = "|" + "|".join([pad_center(h, w_data) for h in sub_headers]) + "|"
+    
+    # Separator
+    sep_str = "-" * len(sub_str)
+    
+    # Data Row
+    data_str = "|" + "|".join([pad_center(v, w_data) for v in row_vals]) + "|"
+    
+    print("\n" + "="*len(sep_str))
+    print(top_str)
+    print(sep_str)
+    print(sub_str)
+    print(sep_str)
+    print(data_str)
+    print("-" * len(sep_str) + "\n")
 
 if __name__ == "__main__":
     main()

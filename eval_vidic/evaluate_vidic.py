@@ -146,13 +146,45 @@ def main():
     # Calculate widths for alignment (optional but nice)
     # Just printing standard Markdown/Pipe table format
     
-    header_str = " | ".join(headers)
-    separator_str = " | ".join(["---"] * len(headers))
-    row_str = " | ".join(row_val)
+    # Calculate column widths
+    col_widths = []
     
-    print(header_str)
-    print(separator_str)
-    print(row_str)
+    # Combine headers and values for width calculation
+    # Only one row of data plus header
+    
+    all_rows = [headers, row_val]
+    
+    num_cols = len(headers)
+    
+    for i in range(num_cols):
+        max_w = 0
+        for row in all_rows:
+            w = len(str(row[i]))
+            if w > max_w:
+                max_w = w
+        col_widths.append(max_w)
+    
+    # Function to format a row
+    def format_row(row, widths):
+        parts = []
+        for i, val in enumerate(row):
+            parts.append(str(val).ljust(widths[i]))
+        return "| " + " | ".join(parts) + " |"
+        
+    print("\n" + "="*80)
+    print("--- ViDiC Evaluation Results ---")
+    print("="*80)
+    
+    header_line = format_row(headers, col_widths)
+    separator_line = "| " + " | ".join(["-" * w for w in col_widths]) + " |"
+    data_line = format_row(row_val, col_widths)
+    
+    print("-" * len(header_line))
+    print(header_line)
+    print(separator_line)
+    print(data_line)
+    print("-" * len(header_line))
+    print("\n")
 
 
 if __name__ == "__main__":
