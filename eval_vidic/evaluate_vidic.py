@@ -4,7 +4,7 @@ import sys
 import os
 
 # 默认路径
-DEFAULT_PREDICT = r"D:\Desktop\毕设\Agent\eval_vidic\node_0_final_results.json"
+DEFAULT_PREDICT = r"eval_vidic\node_0_final_results.json"
 DEFAULT_GT = r"Benchmark/ViDiC-1K/test/metadata.json"
 
 def main():
