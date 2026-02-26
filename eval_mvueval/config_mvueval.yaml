@@ -16,9 +16,11 @@ parameters:
   num_gpus: 1
   # 任务数量, -1 表示所有
   num_tasks: -1
+  sub_task: "all"
   save_key_frames: false
   save_video_frames: false
   number_type: "123"
+  
 
   use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
   use_text_answer: true # 是否提供文本描述 (对应 answer_text_only 模版)

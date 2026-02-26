@@ -4,8 +4,8 @@ import sys
 import os
 
 # 默认路径
-DEFAULT_PREDICT = "eval_mvueval/node_0_final_results(1).json"
-DEFAULT_GT = "Benchmark/MVU-Eval_Data/MVU_Eval_QAs.json"
+DEFAULT_PREDICT = "D:\\Desktop\\毕设\\ECCV\\1.json"
+DEFAULT_GT = "D:\\Desktop\\毕设\\ECCV\\Benchmark\\MVU-Eval_Data\\MVU_Eval_QAs.json"
 
 def print_as_table(headers, data_rows):
     """手动打印表格，不使用tabulate"""
