@@ -17,6 +17,7 @@ parameters:
   num_gpus: 1
   # 任务数量, -1 表示所有
   num_tasks: -1
+  sub_task: "all"
   save_key_frames: false
   save_video_frames: false
   number_type: "ABC"

@@ -65,9 +65,10 @@ def main():
     benchmark_name = config.get('paths', {}).get('Benchmark_name', 'ViDiC')
     type_watermark = config.get('parameters', {}).get('type_watermark', 'default').replace(' ', '_')
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    sub_task = config.get('parameters', {}).get('sub_task', 'all')
     
-    # Format: {Benchmark_name}_{date}_{time}_{type_watermark}
-    run_id = f"{benchmark_name}_{timestamp}_{type_watermark}"
+    # Format: {Benchmark_name}_{sub_task}_{date}_{time}_{type_watermark}
+    run_id = f"{benchmark_name}_{sub_task}_{timestamp}_{type_watermark}"
     
     # Base log directory
     log_dir = os.path.join("log", run_id)
@@ -95,6 +96,10 @@ def main():
     # Load dataset
     with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
+        
+    # Filter data based on sub_task if not "all"
+    if sub_task != "all":
+        data = {k: v for k, v in data.items() if v.get('task') in sub_task}
         
     # Get all keys sorted
     all_keys = list(data.keys())
