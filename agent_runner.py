@@ -603,7 +603,7 @@ class AgentRunner:
             ret, frame = cap.read()
             cap.release()
             
-            if ret:
+            if ret: 
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_image = Image.fromarray(frame_rgb)
                 save_path = os.path.join(output_dir, frame_name)
