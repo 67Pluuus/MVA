@@ -54,6 +54,7 @@ class AgentRunner:
         self.device_id = device_id
         self.node_rank = node_rank
         self.run_id = run_id
+        self.uniform_sample_count = {}  # 记录每个视频的均匀采样次数
         
         # If run_id is provided, override output paths to save everything in log/run_id folder
         if self.run_id:
@@ -190,7 +191,9 @@ class AgentRunner:
             
             # Uniform sampling
             safe_v_name = v_name.replace(" ", "_")
-            frames_info = self._extract_uniform_frames(v_path, 8, q_id, safe_v_name)
+            # 初始化均匀采样计数
+            self.uniform_sample_count[v_path] = 0
+            frames_info = self._extract_uniform_frames(v_path, 8, q_id, safe_v_name, offset=0.0)
             
             # Use DescAgent to generate initial description and score
             v_label_str = v_name
@@ -405,7 +408,7 @@ class AgentRunner:
                  # Append new observation to existing history
                  v_curr['description'] += f"\n{formatted_desc_part}"
 
-            old_score = v_curr['last_score']
+            old_score = min(v_curr['last_score'], 0.01) # Avoid zero division and treat very low scores as 0.01 for acceleration calculation
             acceleration = (score_new - old_score) / old_score if old_score > 0 else 0.0
             
             # Update state
@@ -638,7 +641,7 @@ class AgentRunner:
         duration = self._get_video_duration(video_path)
         if duration <= 0:
             return []
-            
+
         output_dir = os.path.join(self.config['paths']['video_frames_dir'], q_id, v_name)
         os.makedirs(output_dir, exist_ok=True)
         
@@ -691,9 +694,12 @@ class AgentRunner:
         os.makedirs(output_dir, exist_ok=True)
         
         if option == 5:
-            # Global uniform with offset
-            offset = duration / (8 + 1) * 0.25
-            return self._extract_uniform_frames(video_path, 8, q_id, v_name, offset)
+            # Global uniform，每次采样offset递增
+            if video_path not in self.uniform_sample_count:
+                self.uniform_sample_count[video_path] = 0
+            self.uniform_sample_count[video_path] += 1
+            offset = (duration / (8+1) * 0.25) * self.uniform_sample_count[video_path] # 每次增加25%间隔的偏移，确保每次采样点都不同
+            return self._extract_uniform_frames(video_path, 8, q_id, v_name, offset=offset)
             
         # For options 1-4, sample within [target_start, target_end]
         times = np.linspace(target_start, target_end, 8 + 2)[1:-1]
