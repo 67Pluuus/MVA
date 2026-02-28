@@ -68,20 +68,20 @@ class ToolAgent:
                                 .replace("{OTHER_VIDEOS_DESC}", other_videos_str) \
                                 .replace("{OPTIONS}", options_text)
         content = []
-        if self.config.get('print_output', False):
+        if self.config['parameters'].get('print_output', False):
             print("============Tool Agent Prompt===========")
             print(prompt)
+            print("============Tool Agent Current Frame for Scoring===========")
         # Add visual content ONLY for current frames (to score them)
         for f in current_paths:
             content.append({"type": "image", "image": f})
-            if self.config.get('print_output', False):
-                print("============Tool Agent Current Frame for Scoring===========")
+            if self.config['parameters'].get('print_output', False):
                 print(f)
         content.append({"type": "text", "text": prompt})
         
         messages = [{"role": "user", "content": content}]
         output = self.Qwen_VL(messages, max_tokens=256)
-        if self.config.get('print_output', False):
+        if self.config['parameters'].get('print_output', False):
             print("============Tool Agent Output===========")
             print(output)
         # Parse Scores
@@ -121,9 +121,14 @@ class ToolAgent:
         
         if option in [3, 4] and not is_global:
             option = 1
+        
+        if self.config['parameters'].get('print_output', False):
+            print(f"Parsed Scores: {scores}")
+            print(f"Parsed Option: {option}")
+            print(f"Parsed Target Start: {target_start}")
+            print(f"Parsed Target End: {target_end}")
             
         return scores, option, target_start, target_end
-
 
 
 
@@ -172,24 +177,25 @@ Descriptions of other videos:
 Output format:
 New Description: <concise description of provided frames>
 ---
-Score: <score 0.01-1.00 for the FULL description>
+Score: <score 0.00-1.00 for the FULL description>
 Video Terminated: <True/False>
 Global Terminated: <True/False>
 """
         content = []
-        if self.config.get('print_output', False):
+        if self.config['parameters'].get('print_output', False):
             print("============Desc Agent Prompt===========")
             print(prompt)
+            print("============Desc Agent Frame for Description===========")
+
         for f in frames:
             content.append({"type": "image", "image": f})
-            if self.config.get('print_output', False):
-                print("============Desc Agent Frame for Description===========")
+            if self.config['parameters'].get('print_output', False):
                 print(f)
         content.append({"type": "text", "text": prompt})
         
         messages = [{"role": "user", "content": content}]
         output = self.Qwen_VL(messages, max_tokens=384)
-        if self.config.get('print_output', False):
+        if self.config['parameters'].get('print_output', False):
             print("============Desc Agent Output===========")
             print(output)
         
@@ -228,6 +234,12 @@ Global Terminated: <True/False>
         g_term_match = re.search(r'Global Terminated:\s*(True|False)', output, re.IGNORECASE)
         if g_term_match:
             global_terminated = g_term_match.group(1).lower() == 'true'
+
+        if self.config['parameters'].get('print_output', False):
+            print(f"Parsed Description: {desc_new}")
+            print(f"Parsed Score: {score_new}")
+            print(f"Parsed Video Terminated: {video_terminated}")
+            print(f"Parsed Global Terminated: {global_terminated}")
             
         return desc_new, score_new, video_terminated, global_terminated
         

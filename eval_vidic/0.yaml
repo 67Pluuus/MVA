@@ -142,7 +142,7 @@ prompts:
 
   #
   # /* 任务 1：评分 */
-  # - 对帧库中的每一帧打分（0.01-1.00）。高分表示包含关键证据。
+  # - 对帧库中的每一帧打分（0.00-1.00）。高分表示包含关键证据。
   #
   # /* 任务 2：决定动作 */
   # 基于当前的视觉信息和问题，选择一个选项（1-6）：
@@ -174,10 +174,10 @@ prompts:
     **Important: Each frame has a specific timestamp (in seconds) marked in the top-left corner. Use these timestamps to ground your reasoning.**
 
     /* Task 1: Scoring */
-    - Assign a score (0.01-1.00) to EACH provided frame based on its relevance to the question. 
+    - Assign a score (0.00-1.00) to EACH provided frame based on its relevance to the question. 
     - 1.00: The frame contains critical, direct visual evidence that answers the question.
     - 0.50: The frame provides useful context but is not decisive.
-    - 0.01: The frame is irrelevant, blurry, or redundant.
+    - 0.00: The frame is irrelevant, blurry, or redundant.
 
     /* Task 2: Decide Action */
     Choose one option (1-6) based on current visual info. 
@@ -191,7 +191,7 @@ prompts:
     6. **Terminate video exploration**: Stop if (1) we have sufficient evidence from it, OR (2) it appears irrelevant/low-value relative to the question.
 
     /* Output Format */
-    Scores: <space-separated list of scores for the frames>
+    Scores: <space-separated list of scores for the frames you got>
     Decision: Option <number> [Range: <start>, <end>] (Range optional for Option 5/6)
 
   # 【中文对照】

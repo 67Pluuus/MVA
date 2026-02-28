@@ -207,7 +207,8 @@ class AgentRunner:
                 frames=frame_paths, 
                 desc_old="", 
                 other_descs=other_descs, 
-                video_label=v_label_str
+                video_label=v_label_str,
+                options_text=options_text
             )
             
             # Format initial description with time range (0 - duration)
@@ -305,7 +306,8 @@ class AgentRunner:
                 duration,
                 video_label=v_label,
                 current_video_desc=current_video_desc,
-                other_videos_desc=other_videos_desc
+                other_videos_desc=other_videos_desc,
+                options_text=options_text
             )
             
             # Update frame bank with SCORED candidates
@@ -380,7 +382,8 @@ class AgentRunner:
                 frames=new_frame_paths, 
                 desc_old=v_curr['description'], 
                 other_descs=other_descs, 
-                video_label=v_label
+                video_label=v_label,
+                options_text=options_text
             )
             
             # Update Description

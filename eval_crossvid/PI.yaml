@@ -113,7 +113,7 @@ prompts:
     - High-scoring frames are more likely to be retained in future steps, while low-scoring frames are more likely to be discarded.
 
     /* Output Format */
-    Output exactly {NUM_FRAMES} floating-point numbers between 0.01 and 1.00, separated by spaces.
+    Output exactly {NUM_FRAMES} floating-point numbers between 0.00 and 1.00, separated by spaces.
     Example output:
     0.10 0.85 0.40 0.90 0.20 0.15 0.70 0.50
 
@@ -152,7 +152,7 @@ prompts:
        - Remove outdated or irrelevant information.
        - Ensure the new description is coherent.
 
-    2. **Quality Evaluation (Score 0.01-1.00)**:
+    2. **Quality Evaluation (Score 0.00-1.00)**:
        - Rate how helpful the refined description is for answering the question.
        - High score = The description contains the answer or strong evidence.
        - Low score = The description is vague or irrelevant.
