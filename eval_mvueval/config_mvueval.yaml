@@ -32,6 +32,8 @@ parameters:
     skip_iteration: false # 是否跳过初始化后的迭代过程 (仅用于测试或者快速预览)
     frame_bank_size: 16 # 每个视频最多取这么多帧
     initial_acceleration: 1.0
+    min_acceleration_threshold: 0.2 # 单视频最低加速度阈值，低于则终止该视频
+    max_score_threshold: 0.8 # 所有视频平均分数超过则整体终止
 
   type_watermark: "video_tag temporal_tag trans_frame" # 水印类型
   # 可选模式 (可叠加, 如"video_tag+temporal_tag"):

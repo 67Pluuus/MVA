@@ -53,6 +53,7 @@ def main():
     parser.add_argument('--gpus', type=str, default='0', help='Comma-separated list of GPU IDs to use (e.g., "0,1,2,3")')
     parser.add_argument('--num_nodes', type=int, default=1, help='Total number of nodes')
     parser.add_argument('--node_rank', type=int, default=0, help='Rank of current node')
+    parser.add_argument('--num_tasks', type=int, required=False)
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -107,7 +108,7 @@ def main():
     all_keys.sort(key=lambda x: int(x) if x.isdigit() else x) 
 
     # Apply num_tasks limit if set
-    num_tasks = config.get('parameters', {}).get('num_tasks', -1)
+    num_tasks = args.num_tasks if args.num_tasks is not None else config.get('parameters', {}).get('num_tasks', -1)
     if num_tasks != -1 and num_tasks < len(all_keys):
         print(f"Limiting tasks to first {num_tasks} (from config)")
         all_keys = all_keys[:num_tasks]

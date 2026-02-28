@@ -218,6 +218,13 @@ class AgentRunner:
             TextBank['videos'][v_name]['current_frames'] = frames_info
             TextBank['videos'][v_name]['description'] = initial_desc
             TextBank['videos'][v_name]['last_score'] = score_new # Set initial score from model
+            # Compute initial priority immediately after initialization
+            initial_priority = calculate_priority_score(
+                TextBank['videos'][v_name]['last_score'],
+                TextBank['videos'][v_name]['last_acceleration'],
+                self.config
+            )
+            TextBank['videos'][v_name]['priority'] = initial_priority
             
             # Check termination immediately
             if v_term:
@@ -230,7 +237,8 @@ class AgentRunner:
                 'status': 'initialized',
                 'initial_description': initial_desc,
                 'acceleration': self.config['parameters']['agent']['initial_acceleration'],
-                'score': score_new
+                'score': score_new,
+                'priority': TextBank['videos'][v_name].get('priority', 1.0)
             })
 
         # Phase 2: Main Iteration Loop
@@ -244,19 +252,38 @@ class AgentRunner:
         iteration_count = 0
         
         while not global_terminated and iteration_count < max_iterations:
+            agent_cfg = self.config['parameters'].get('agent', {})
+            min_accel = agent_cfg.get('min_acceleration_threshold', 0.2)
+            max_score = agent_cfg.get('max_score_threshold', 0.8)
+
             active_videos = {k: v for k, v in TextBank['videos'].items() if v['status'] == 'active'}
             if not active_videos:
                 break
-            
+
             # Calculate priority for all active videos to select one
-            # (Note: In original code priority was updated at end of loop. Here we should ensure it's up to date or use simple logic)
-            # Initial priority calculation using the formula if needed, but we initialized values.
             for v_k, v_v in active_videos.items():
-                 v_v['priority'] = calculate_priority_score(v_v['last_score'], v_v['last_acceleration'], self.config)
+                v_v['priority'] = calculate_priority_score(v_v['last_score'], v_v['last_acceleration'], self.config)
+
+            # --- 终止逻辑：加速度低于阈值则终止该视频 ---
+            for v_k, v_v in active_videos.items():
+                if v_v['last_acceleration'] < min_accel:
+                    v_v['status'] = 'accel_terminated'
+                    v_v['last_score'] = max_score
+
+            # --- 终止逻辑：所有视频平均分超过阈值则整体终止 ---
+            all_scores = [v['last_score'] for v in TextBank['videos'].values()]
+            if all_scores and sum(all_scores)/len(all_scores) >= max_score:
+                global_terminated = True
+                break
+
+            # 重新筛选活跃视频
+            active_videos = {k: v for k, v in TextBank['videos'].items() if v['status'] == 'active'}
+            if not active_videos:
+                break
 
             v_curr_name = max(active_videos.keys(), key=lambda k: active_videos[k]['priority'])
             v_curr = TextBank['videos'][v_curr_name]
-            
+
             v_idx = v_curr['idx']
             if self.config['parameters'].get('number_type') == "123":
                 v_label = f"Video {v_idx}"
@@ -264,27 +291,18 @@ class AgentRunner:
                 v_label = f"Video {chr(ord('A') + v_idx - 1)}"
 
             duration = v_curr.get('duration', self._get_video_duration(v_curr['path']))
-            
+
             # --- Tool Agent Work ---
-            # 1. Visualize candidates with timestamps for Tool Agent
             current_candidate_frames = v_curr['current_frames']
             current_vis_frames = self._add_timestamp_to_frames(current_candidate_frames)
-            
-            # --- Tool Agent Work ---
-            # 2. Score CURRENT frames (candidates) AND 3. Decide next action in ONE call
-            
             existing_bank_frames = v_curr['frame_bank']
-
-            # Prepare descriptions for Tool Agent
             current_video_desc = v_curr.get('description', "No description yet.")
             other_videos_desc = {k: v.get('description', 'No description.') for k, v in TextBank['videos'].items() if k != v_curr_name}
-            
-            # Note: We pass the TIMESTAMPED frames for visual reasoning, but the original frames for metadata
             candidate_scores, option, target_start, target_end = tool_agent.decide_action(
-                question, 
-                existing_bank_frames, 
-                current_vis_frames, 
-                duration, 
+                question,
+                existing_bank_frames,
+                current_vis_frames,
+                duration,
                 video_label=v_label,
                 current_video_desc=current_video_desc,
                 other_videos_desc=other_videos_desc
@@ -678,7 +696,7 @@ class AgentRunner:
         times = np.linspace(target_start, target_end, 8 + 2)[1:-1]
         frames_info = []
         for i, t in enumerate(times):
-            f_name = f"iter{iteration}_{time.time()}_{i}.jpg"
+            f_name = f"iter{iteration}_{i}_{t:.2f}.jpg"
             f_path = self._extract_frame_at_time(video_path, t, output_dir, f_name)
             if f_path:
                 frames_info.append({'path': f_path, 'time': t})
@@ -689,9 +707,9 @@ class AgentRunner:
         Mode 1: (video_tag) - Add Video Label ONLY.
         """
         if self.config['parameters'].get('number_type') == "123":
-            cv2.putText(img, f"Video {video_idx}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2, cv2.LINE_AA)
+            cv2.putText(img, f"Video {video_idx}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 0, 255), 3, cv2.LINE_AA)
         else:
-            cv2.putText(img, f"Video {chr(ord('A') + video_idx - 1)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
+            cv2.putText(img, f"Video {chr(ord('A') + video_idx - 1)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 255, 0), 3, cv2.LINE_AA)
         
         return img
 
@@ -705,7 +723,7 @@ class AgentRunner:
         # Let's just put the text.
         
         text = f"{time_sec:.2f}s"
-        cv2.putText(img, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(img, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255), 3, cv2.LINE_AA)
         
         return img
 
