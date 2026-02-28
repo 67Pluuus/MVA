@@ -127,8 +127,8 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
             print("=== MODEL OUTPUT START ===")
             print(final_output)
             print("=== MODEL OUTPUT END ===")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error printing model output: {e}")
     return final_output
 
 

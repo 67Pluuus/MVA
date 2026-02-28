@@ -7,11 +7,11 @@
 NUM_GPUS=1
 
 # Configuration file
-CONFIG_PATH="MVA/eval_vidic/config_vidic.yaml"
+CONFIG_PATH="MVA/eval_vidic/0.yaml"
 
 # Control printing of model I/O. Set to "true" to enable printing of prompt, image paths, and model output.
 # You can override by passing a first argument to the script, or by exporting PRINT_MODEL_IO in the environment.
-PRINT_MODEL_IO=false
+PRINT_MODEL_IO=true
 if [ -n "$1" ]; then
     PRINT_MODEL_IO=$1
 fi
