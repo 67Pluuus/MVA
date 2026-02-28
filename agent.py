@@ -17,7 +17,7 @@ class ToolAgent:
         from utils import Qwen_VL
         return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
 
-    def decide_action(self, question: str, frame_bank: List[Tuple[str, float, float]], current_frames_info: List[dict], video_duration: float, video_label: str = "ONE of the videos", current_video_desc: str = "", other_videos_desc: Dict[str, str] = {}) -> Tuple[List[float], int, float, float]:
+    def decide_action(self, question: str, frame_bank: List[Tuple[str, float, float]], current_frames_info: List[dict], video_duration: float, video_label: str = "ONE of the videos", current_video_desc: str = "", other_videos_desc: Dict[str, str] = {}, options_text: str = "") -> Tuple[List[float], int, float, float]:
         """
         Score newly sampled frames (current_frames_info) AND decide the next sampling action in one go.
         
@@ -60,14 +60,14 @@ class ToolAgent:
             other_videos_str = "None"
 
         if prompt_template:
-            # You would update prompts.yaml to support this
             prompt = prompt_template.replace("{QUESTION}", question) \
                                     .replace("{VIDEO_LABEL}", video_label) \
                                     .replace("{START_TIME}", f"{start_time:.2f}") \
                                     .replace("{END_TIME}", f"{end_time:.2f}") \
                                     .replace("{IS_GLOBAL}", str(is_global)) \
                                     .replace("{CURRENT_VIDEO_DESC}", current_video_desc) \
-                                    .replace("{OTHER_VIDEOS_DESC}", other_videos_str)
+                                    .replace("{OTHER_VIDEOS_DESC}", other_videos_str) \
+                                    .replace("{OPTIONS}", options_text)
         else:
              prompt = f"""
 You are a Tool Agent. 
@@ -160,7 +160,7 @@ class DescAgent:
         from utils import Qwen_VL
         return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
 
-    def describe_and_evaluate(self, question: str, frames: List[str], desc_old: str, other_descs: Dict[str, str], video_label: str = "ONE of the videos") -> Tuple[str, float, bool, bool]:
+    def describe_and_evaluate(self, question: str, frames: List[str], desc_old: str, other_descs: Dict[str, str], video_label: str = "ONE of the videos", options_text: str = "") -> Tuple[str, float, bool, bool]:
         """
         Generate a description from frames AND evaluate status (score, termination) in one go.
         frames: New frames to describe.
@@ -177,7 +177,8 @@ class DescAgent:
             prompt = prompt_template.replace("{QUESTION}", question) \
                                     .replace("{VIDEO_LABEL}", video_label) \
                                     .replace("{DESC_OLD}", desc_old) \
-                                    .replace("{OTHER_DESCS_TEXT}", other_descs_text)
+                                    .replace("{OTHER_DESCS_TEXT}", other_descs_text) \
+                                    .replace("{OPTIONS}", options_text)
         else:
             prompt = f"""
 You are a Desc Agent.

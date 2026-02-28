@@ -163,6 +163,7 @@ prompts:
     2. Decide the next sampling action to find missing clues.
 
     Question: "{QUESTION}"
+    Options: {OPTIONS}
     Current Receptive Field (Just explored): {START_TIME:.2f}s to {END_TIME:.2f}s.
     Is Global View: {IS_GLOBAL}
 
@@ -186,7 +187,7 @@ prompts:
     3. **Focus Start/End, Replace current frames**: Explore the start/end part of the video; DISCARD current frames. (Valid ONLY when current view covers the whole video)
     4. **Focus Start/End, Keep current frames**: Explore the start/end part of the video; RETAIN current frames. (Valid ONLY when current view covers the whole video)
     5. **Global Uniform Sampling with offset, Replace current frames**: Re-sample global; DISCARD current.
-    6. **Terminate video exploration**: Stop if sufficient info found.
+    6. **Terminate video exploration**: Stop if (1) we have sufficient evidence from it, OR (2) it appears irrelevant/low-value relative to the question.
 
     /* Output Format */
     Scores: <space-separated list of scores for the frames>
@@ -207,7 +208,7 @@ prompts:
   # - 仅描述新帧中与问题相关的视觉细节。不要重复已知信息。
   #
   # /* 任务 2：评估与终止 */
-  # - 评分（0.01-1.00）：完整描述对回答问题的帮助程度。
+  # - 评分（0.00-1.00）：完整描述对回答问题的帮助程度。
   # - 终止检查 1（当前视频）：是否已挖掘完该视频的所有信息？
   # - 终止检查 2（全局任务）：结合所有视频，是否有足够证据得出结论？
   #
@@ -225,6 +226,7 @@ prompts:
     2. Evaluate the quality of the **Accumulated Evidence** (Previous + New) and decide termination.
 
     Question: "{QUESTION}"
+    Options: {OPTIONS}
     Previous Evidence: "{DESC_OLD}"
     Other Videos Evidence: 
     {OTHER_DESCS_TEXT}
@@ -233,7 +235,7 @@ prompts:
     - Identify and record ONLY the visual clues in the frames that are helpful for answering the question. Focus on finding evidence rather than general description. Do not repeat known info from the previous evidence.
 
     /* Task 2: Evaluation & Termination */
-    - Score (0.01-1.00): How sufficient is the Accumulated Evidence for answering the question?
+    - Score (0.00-1.00): How sufficient is the Accumulated Evidence for answering the question?
     - Termination Check 1 (Current Video): Should we STOP exploring THIS video? Answer True if (1) we have sufficient evidence from it, OR (2) it appears irrelevant/low-value relative to the question. (True/False)
     - Termination Check 2 (Global Task): Synthesizing the evidence from ALL videos (this one + others), do we have enough information to answer the question conclusively? (True/False)
 

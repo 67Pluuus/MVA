@@ -644,7 +644,7 @@ class AgentRunner:
         
         frames_info = []
         for i, t in enumerate(times):
-            f_name = f"uniform_{time.time()}_{i}.jpg"
+            f_name = f"uniform_{i}_{t:.2f}.jpg"
             f_path = self._extract_frame_at_time(video_path, t, output_dir, f_name)
             if f_path:
                 frames_info.append({'path': f_path, 'time': t})
