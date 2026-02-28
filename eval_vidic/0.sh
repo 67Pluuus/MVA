@@ -9,22 +9,6 @@ NUM_GPUS=1
 # Configuration file
 CONFIG_PATH="MVA/eval_vidic/0.yaml"
 
-# Control printing of model I/O. Set to "true" to enable printing of prompt, image paths, and model output.
-# You can override by passing a first argument to the script, or by exporting PRINT_MODEL_IO in the environment.
-PRINT_MODEL_IO=true
-if [ -n "$1" ]; then
-    PRINT_MODEL_IO=$1
-fi
-export PRINT_MODEL_IO
-
-# Optional: number of tasks (can be set via env or second positional arg)
-# Example: ./0.sh true 10  -> sets PRINT_MODEL_IO=true and NUM_TASK=10
-NUM_TASK=1
-if [ -n "$2" ]; then
-    NUM_TASK=$2
-fi
-export NUM_TASK
-
 # Multi-node settings (Default is single node 1/1)
 # Total number of nodes involved in the evaluation
 NUM_NODES=1
@@ -40,7 +24,6 @@ echo "--------------------------------------------------------"
 echo "Config: ${CONFIG_PATH}"
 echo "Node:   ${NODE_RANK}"
 echo "GPUs:   ${GPUS}"
-echo "NUM_TASK: ${NUM_TASK}"
 echo "--------------------------------------------------------"
 
 # Run the python script with the distributed parameters
@@ -52,8 +35,7 @@ PYTHONPATH=. python MVA/eval_vidic/run_vidic.py \
     --config "${CONFIG_PATH}" \
     --gpus "${GPUS}" \
     --num_nodes "${NUM_NODES}" \
-    --node_rank "${NODE_RANK}" \
-    --num_task "${NUM_TASK}" 2>&1 | tee "${OUTPUT_LOG}"
+    --node_rank "${NODE_RANK}" 2>&1 | tee "${OUTPUT_LOG}"
 
 # Capture the exit status of the python command (first command in pipe)
 RUN_STATUS=${PIPESTATUS[0]}

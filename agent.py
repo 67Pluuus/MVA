@@ -59,52 +59,31 @@ class ToolAgent:
         if not other_videos_str:
             other_videos_str = "None"
 
-        if prompt_template:
-            prompt = prompt_template.replace("{QUESTION}", question) \
-                                    .replace("{VIDEO_LABEL}", video_label) \
-                                    .replace("{START_TIME}", f"{start_time:.2f}") \
-                                    .replace("{END_TIME}", f"{end_time:.2f}") \
-                                    .replace("{IS_GLOBAL}", str(is_global)) \
-                                    .replace("{CURRENT_VIDEO_DESC}", current_video_desc) \
-                                    .replace("{OTHER_VIDEOS_DESC}", other_videos_str) \
-                                    .replace("{OPTIONS}", options_text)
-        else:
-             prompt = f"""
-You are a Tool Agent. 
-Task 1: Evaluate the importance of each of the {len(current_paths)} provided frames (the newly sampled batch) for answering the question.
-Task 2: Decide the next frame sampling strategy based on the current exploration.
-
-Question: "{question}"
-Current receptive field (just explored): {start_time:.2f}s to {end_time:.2f}s.
-Video duration: {video_duration:.2f}s.
-Is global receptive field: {is_global}
-
-Existing Frame Bank (Best frames found so far): {bank_context_str}
-Current Video Description: {current_video_desc}
-Other Videos Descriptions:
-{other_videos_str}
-
-Options:
-1. Focus Middle, Replace current frames
-2. Focus Middle, Keep current frames
-3. Focus Start/End, Replace current frames (Only available if global receptive field)
-4. Focus Start/End, Keep current frames (Only available if global receptive field)
-5. Global Uniform Sampling with offset, Replace current frames
-6. Terminate video exploration (if no more useful information can be found)
-
-Output format:
-Scores: <space_separated_scores_for_current_frames>
-Decision: Option <number> [Range: <start>, <end>] (Range is optional for Option 5/6)
-"""
+        prompt = prompt_template.replace("{QUESTION}", question) \
+                                .replace("{VIDEO_LABEL}", video_label) \
+                                .replace("{START_TIME}", f"{start_time:.2f}") \
+                                .replace("{END_TIME}", f"{end_time:.2f}") \
+                                .replace("{IS_GLOBAL}", str(is_global)) \
+                                .replace("{CURRENT_VIDEO_DESC}", current_video_desc) \
+                                .replace("{OTHER_VIDEOS_DESC}", other_videos_str) \
+                                .replace("{OPTIONS}", options_text)
         content = []
+        if self.config.get('print_output', False):
+            print("============Tool Agent Prompt===========")
+            print(prompt)
         # Add visual content ONLY for current frames (to score them)
         for f in current_paths:
             content.append({"type": "image", "image": f})
+            if self.config.get('print_output', False):
+                print("============Tool Agent Current Frame for Scoring===========")
+                print(f)
         content.append({"type": "text", "text": prompt})
         
         messages = [{"role": "user", "content": content}]
         output = self.Qwen_VL(messages, max_tokens=256)
-        
+        if self.config.get('print_output', False):
+            print("============Tool Agent Output===========")
+            print(output)
         # Parse Scores
         scores = []
         score_line_match = re.search(r'Scores:\s*([0-9\.\s]+)', output)
@@ -198,12 +177,21 @@ Video Terminated: <True/False>
 Global Terminated: <True/False>
 """
         content = []
+        if self.config.get('print_output', False):
+            print("============Desc Agent Prompt===========")
+            print(prompt)
         for f in frames:
             content.append({"type": "image", "image": f})
+            if self.config.get('print_output', False):
+                print("============Desc Agent Frame for Description===========")
+                print(f)
         content.append({"type": "text", "text": prompt})
         
         messages = [{"role": "user", "content": content}]
         output = self.Qwen_VL(messages, max_tokens=384)
+        if self.config.get('print_output', False):
+            print("============Desc Agent Output===========")
+            print(output)
         
         desc_new = "No new description."
         score_new = 0.5
@@ -243,124 +231,3 @@ Global Terminated: <True/False>
             
         return desc_new, score_new, video_terminated, global_terminated
         
-    def refine_and_evaluate(self, question: str, desc_old: str, desc_raw: str, other_descs: Dict[str, str], video_label: str = "ONE video") -> Tuple[str, float, bool, bool]:
-        """
-        Fuse information, score the new description, and decide termination.
-        Returns: (desc_refined, score_new, video_terminated, global_terminated)
-        """
-        other_descs_text = "\n".join([f"{k}: {v}" for k, v in other_descs.items() if v])
-        
-        prompt_template = self.config['prompts'].get('desc_refine_and_evaluate')
-        if prompt_template:
-            prompt = prompt_template.replace("{QUESTION}", question) \
-                                    .replace("{VIDEO_LABEL}", video_label) \
-                                    .replace("{DESC_OLD}", desc_old) \
-                                    .replace("{DESC_RAW}", desc_raw) \
-                                    .replace("{OTHER_DESCS_TEXT}", other_descs_text)
-        else:
-            prompt = f"""
-You are a Desc Agent. Your task is to fuse information, evaluate the quality of the description, and decide if we should stop exploring.
-Question: "{question}"
-
-Previous description of this video: "{desc_old}"
-New preliminary description of this video: "{desc_raw}"
-Descriptions of other videos:
-{other_descs_text}
-
-Tasks:
-1. Information Fusion: Combine the previous and new descriptions into a refined, concise description that best answers the question.
-2. Description Scoring: Assign a score (0.01-1.00) to the refined description based on how well it helps answer the question.
-3. Termination Check 1 (Current Video): Have we fully mined the useful information from this video? (True/False)
-4. Termination Check 2 (Global Task): Combining all videos' information, do we have enough information to answer the question completely? (True/False)
-
-Output exactly in this format:
-Refined Description: <your refined description>
-Score: <score>
-Video Terminated: <True/False>
-Global Terminated: <True/False>
-"""
-        content = [{"type": "text", "text": prompt}]
-        messages = [{"role": "user", "content": content}]
-        
-        output = self.Qwen_VL(messages, max_tokens=512)
-        
-        desc_refined = desc_raw
-        score_new = 0.5
-        video_terminated = False
-        global_terminated = False
-        
-        desc_match = re.search(r'Refined Description:\s*(.*?)\nScore:', output, re.DOTALL)
-        if desc_match:
-            desc_refined = desc_match.group(1).strip()
-            
-        score_match = re.search(r'Score:\s*(0\.\d+|1\.00?|0)', output)
-        if score_match:
-            score_new = float(score_match.group(1))
-            
-        v_term_match = re.search(r'Video Terminated:\s*(True|False)', output, re.IGNORECASE)
-        if v_term_match:
-            video_terminated = v_term_match.group(1).lower() == 'true'
-            
-        g_term_match = re.search(r'Global Terminated:\s*(True|False)', output, re.IGNORECASE)
-        if g_term_match:
-            global_terminated = g_term_match.group(1).lower() == 'true'
-            
-        return desc_refined, score_new, video_terminated, global_terminated
-
-    def evaluate_status(self, question: str, description: str, other_descs: Dict[str, str], video_label: str = "ONE video") -> Tuple[float, bool, bool]:
-        """
-        Evaluate the current description and decide termination.
-        Returns: (score, video_terminated, global_terminated)
-        """
-        other_descs_text = "\n".join([f"{k}: {v}" for k, v in other_descs.items() if v])
-        
-        prompt_template = self.config['prompts'].get('desc_evaluate_status')
-        if prompt_template:
-            prompt = prompt_template.replace("{QUESTION}", question) \
-                                    .replace("{VIDEO_LABEL}", video_label) \
-                                    .replace("{DESCRIPTION}", description) \
-                                    .replace("{OTHER_DESCS_TEXT}", other_descs_text)
-        else:
-            prompt = f"""
-You are a Desc Agent. Your task is to evaluate the quality of the description and decide if we should stop exploring.
-Question: "{question}"
-
-Current description of this video: "{description}"
-Descriptions of other videos:
-{other_descs_text}
-
-Tasks:
-1. Description Scoring: Assign a score (0.01-1.00) to the current description based on how well it helps answer the question.
-2. Termination Check 1 (Current Video): Have we fully mined the useful information from this video? (True/False)
-3. Termination Check 2 (Global Task): Combining all videos' information, do we have enough information to answer the question completely? (True/False)
-
-Output exactly in this format:
-Score: <score>
-Video Terminated: <True/False>
-Global Terminated: <True/False>
-"""
-        content = [{"type": "text", "text": prompt}]
-        messages = [{"role": "user", "content": content}]
-        
-        output = self.Qwen_VL(messages, max_tokens=128)
-        
-        score_new = 0.5
-        video_terminated = False
-        global_terminated = False
-        
-        score_match = re.search(r'Score:\s*(0\.\d+|1\.00?|0)', output)
-        if score_match:
-            try:
-                score_new = float(score_match.group(1))
-            except ValueError:
-                pass
-            
-        v_term_match = re.search(r'Video Terminated:\s*(True|False)', output, re.IGNORECASE)
-        if v_term_match:
-            video_terminated = v_term_match.group(1).lower() == 'true'
-            
-        g_term_match = re.search(r'Global Terminated:\s*(True|False)', output, re.IGNORECASE)
-        if g_term_match:
-            global_terminated = g_term_match.group(1).lower() == 'true'
-            
-        return score_new, video_terminated, global_terminated

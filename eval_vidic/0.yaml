@@ -25,6 +25,7 @@ parameters:
   use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
   use_text_answer: true # 是否提供文本描述 (对应 answer_text_only 模版)
   # 若两者均为 true, 则使用 answer_combined 模版
+  print_output: true
 
   # Agent 参数
   agent:
@@ -164,7 +165,7 @@ prompts:
 
     Question: "{QUESTION}"
     Options: {OPTIONS}
-    Current Receptive Field (Just explored): {START_TIME:.2f}s to {END_TIME:.2f}s.
+    Current Receptive Field (Just explored): {START_TIME}s to {END_TIME}s.
     Is Global View: {IS_GLOBAL}
 
     Current Video Gathered Evidence: "{CURRENT_VIDEO_DESC}"

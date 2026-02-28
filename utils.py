@@ -81,34 +81,6 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
         video_metadatas = None
 
     # Optional debug printing of model I/O controlled by environment variable PRINT_MODEL_IO
-    try:
-        import os
-        _print_io = os.environ.get('PRINT_MODEL_IO', '').lower() in ('1', 'true', 'yes')
-    except Exception:
-        _print_io = False
-
-    if _print_io:
-        img_paths = []
-        try:
-            for m in messages:
-                content = m.get('content', []) if isinstance(m, dict) else []
-                if isinstance(content, list):
-                    for c in content:
-                        if isinstance(c, dict) and c.get('type') == 'image':
-                            img_paths.append(c.get('image'))
-        except Exception:
-            pass
-
-        print("=== MODEL INPUT START ===")
-        print("PROMPT:")
-        try:
-            print(text)
-        except Exception:
-            print("(failed printing prompt)")
-        print("IMAGES:")
-        for p in img_paths:
-            print(p)
-        print("=== MODEL INPUT END ===")
 
     inputs = processor(text=text, images=images, videos=videos, video_metadata=video_metadatas, return_tensors="pt", do_resize=False, **video_kwargs)
     inputs = inputs.to(model.device)
@@ -121,14 +93,7 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
         generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
     )
     final_output = output_text[0] if output_text else ""
-    try:
-        import os
-        if os.environ.get('PRINT_MODEL_IO', '').lower() in ('1', 'true', 'yes'):
-            print("=== MODEL OUTPUT START ===")
-            print(final_output)
-            print("=== MODEL OUTPUT END ===")
-    except Exception as e:
-        print(f"Error printing model output: {e}")
+
     return final_output
 
 
