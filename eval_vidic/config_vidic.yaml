@@ -233,7 +233,7 @@ prompts:
     {OTHER_DESCS_TEXT}
 
     /* Task 1: Evidence Extraction */
-    - Identify and record ONLY the visual clues in the frames that are helpful for answering the question. Focus on finding evidence rather than general description. Do not repeat known info from the previous evidence.
+    - Identify and record ONLY the visual clues in the frames that are helpful for answering the question. Focus on finding evidence rather than general description. Keep your new evidence in less than 30 words
 
     /* Task 2: Evaluation & Termination */
     - Score (0.00-1.00): How sufficient is the Accumulated Evidence for answering the question?
