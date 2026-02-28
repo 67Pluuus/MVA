@@ -193,7 +193,7 @@ class AgentRunner:
             safe_v_name = v_name.replace(" ", "_")
             # 初始化均匀采样计数
             self.uniform_sample_count[v_path] = 0
-            frames_info = self._extract_uniform_frames(v_path, 8, q_id, safe_v_name, offset=0.0)
+            frames_info = self._init_extract_uniform_frames(v_path, 8, q_id, safe_v_name, offset=0.0)
             
             # Use DescAgent to generate initial description and score
             v_label_str = v_name
@@ -636,6 +636,25 @@ class AgentRunner:
         except Exception as e:
             print(f"Error extracting frame: {e}")
         return None
+    
+    def _init_extract_uniform_frames(self, video_path: str, num_frames: int, q_id: str, v_name: str, offset: float = 0.0) -> List[dict]:
+        duration = self._get_video_duration(video_path)
+        if duration <= 0:
+            return []
+
+        output_dir = os.path.join(self.config['paths']['video_frames_dir'], q_id, v_name)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        times = np.linspace(0, duration, num_frames)
+        times = [min(max(t + offset, 0), duration) for t in times]
+        
+        frames_info = []
+        for i, t in enumerate(times):
+            f_name = f"uniform_{i}_{t:.2f}.jpg"
+            f_path = self._extract_frame_at_time(video_path, t, output_dir, f_name)
+            if f_path:
+                frames_info.append({'path': f_path, 'time': t})
+        return frames_info
 
     def _extract_uniform_frames(self, video_path: str, num_frames: int, q_id: str, v_name: str, offset: float = 0.0) -> List[dict]:
         duration = self._get_video_duration(video_path)
