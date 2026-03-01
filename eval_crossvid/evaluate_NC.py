@@ -4,12 +4,11 @@ import sys
 import os
 
 # 默认路径
-DEFAULT_PREDICT = r"D:\Desktop\毕设\ECCV\Agent\eval_crossvid\node_0_final_results.json"
-DEFAULT_GT = r"D:\Desktop\毕设\ECCV\Benchmark\CrossVid\QA\NC_1.json"
+DEFAULT_GT = "Benchmark/CrossVid/QA/NC_1.json"
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate NC results")
-    parser.add_argument("--predict", type=str, default=DEFAULT_PREDICT, help="Path to prediction JSON file")
+    parser.add_argument("--predict", type=str, required=True, help="Path to prediction JSON file")
     parser.add_argument("--gt", type=str, default=DEFAULT_GT, help="Path to ground truth JSON file")
     
     args = parser.parse_args()

@@ -4,12 +4,11 @@ import sys
 import os
 
 # 默认路径
-DEFAULT_PREDICT = r"eval_crossvid\node_0_final_results.json"
-DEFAULT_GT = r"EBenchmark\CrossVid\QA\BU_1.json"
+DEFAULT_GT = "Benchmark/CrossVid/QA/BU_1.json"
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate BU results")
-    parser.add_argument("--predict", type=str, default=DEFAULT_PREDICT, help="Path to prediction JSON file")
+    parser.add_argument("--predict", type=str, required=True, help="Path to prediction JSON file")
     parser.add_argument("--gt", type=str, default=DEFAULT_GT, help="Path to ground truth JSON file")
     
     args = parser.parse_args()

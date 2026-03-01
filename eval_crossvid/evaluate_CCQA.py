@@ -12,8 +12,8 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 
 # 请根据实际情况修改文件名，这里假设预测结果是 1.json，真值文件是 2.json
-predict = r"D:\Desktop\毕设\Agent\eval_mvueval\result.json"
-gt = r"D:\Desktop\毕设\Agent\Benchmark\MVU-Eval_Data\MVU_Eval_QAs.json"
+predict = ""
+gt = r"Benchmark/CrossVid/QA/CCQA.json"
 
 with open(predict, 'r', encoding='utf-8') as f:
     pred_js = json.load(f)
