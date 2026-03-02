@@ -182,7 +182,7 @@ class AgentRunner:
                 'idx': idx,
                 'duration': v_duration,
                 'iteration_count': 0,
-                'description': "Initial observation.", # Simple description
+                'description': "",
                 'priority': 1.0, # Will be calculated
                 'status': 'active',
                 'last_acceleration': self.config['parameters']['agent']['initial_acceleration'],
@@ -199,8 +199,8 @@ class AgentRunner:
             
             # Use DescAgent to generate initial description and score
             v_label_str = v_name
-            # For initialization, we don't have other descriptions yet
-            other_descs = {}
+            # For initialization, later videos can see descriptions of already initialized videos
+            other_descs = {k: v.get('description', 'No description.') for k, v in TextBank['videos'].items() if k != v_name and v.get('description') != ""}
             
             # Pass frames paths
             frame_paths = [f['path'] for f in frames_info]
@@ -259,7 +259,6 @@ class AgentRunner:
         max_iterations = self.config['parameters'].get('agent', {}).get('global_max_iterations', 10)
         skip_iteration = self.config['parameters'].get('agent', {}).get('skip_iteration', False)
 
-        global_terminated = False
         if skip_iteration:
             global_terminated = True
 
