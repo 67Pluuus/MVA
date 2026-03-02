@@ -4,8 +4,7 @@ import sys
 import os
 
 # 默认路径
-DEFAULT_PREDICT = "D:\\Desktop\\毕设\\ECCV\\1.json"
-DEFAULT_GT = "D:\\Desktop\\毕设\\ECCV\\Benchmark\\MVU-Eval_Data\\MVU_Eval_QAs.json"
+DEFAULT_GT = "Benchmark/MVU-Eval-Data/MVU_Eval_QAs.json"
 
 def print_as_table(headers, data_rows):
     """手动打印表格，不使用tabulate"""
@@ -36,7 +35,7 @@ def print_as_table(headers, data_rows):
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate MVU Eval results")
-    parser.add_argument("--predict", type=str, default=DEFAULT_PREDICT, help="Path to prediction JSON file")
+    parser.add_argument("--predict", type=str, required=True, help="Path to prediction JSON file")
     parser.add_argument("--gt", type=str, default=DEFAULT_GT, help="Path to ground truth JSON file")
     
     args = parser.parse_args()
