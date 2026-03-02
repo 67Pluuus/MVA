@@ -46,7 +46,8 @@ prompts:
     {DESCRIPTIONS}
 
     Question: "{QUESTION}"
-    Options: "{OPTIONS}"
+    Options: 
+    "{OPTIONS}"
 
     Your task is to analyze all the provided keyframes AND the video descriptions to answer the question. Pay attention to:
     1. The visual content of each frame

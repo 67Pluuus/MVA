@@ -80,7 +80,8 @@ prompts:
     {DESCRIPTIONS}
 
     Question: "{QUESTION}"
-    Options: "{OPTIONS}"
+    Options: 
+    "{OPTIONS}"
 
     Your task is to analyze all the provided keyframes AND the video descriptions to answer the question. Pay attention to:
     1. The visual content of each frame
@@ -99,7 +100,8 @@ prompts:
     You are an answer generation model in a multi-video Q&A task. You will receive multiple keyframes from different videos. Each frame has a watermark in the upper left corner indicating which video it belongs to (e.g., "Video A", "Video B", etc.), and the corresponding timestamp in this video.
 
     Question: "{QUESTION}"
-    Options: "{OPTIONS}"
+    Options: 
+    "{OPTIONS}"
 
     Your task is to analyze all the provided keyframes to answer the question. Pay attention to:
     1. The visual content of each frame
@@ -120,7 +122,8 @@ prompts:
     {DESCRIPTIONS}
 
     Question: "{QUESTION}"
-    Options: "{OPTIONS}"
+    Options: 
+    "{OPTIONS}"
 
     Your task is to analyze the provided video descriptions to answer the question. Pay attention to:
     1. The events and details described in each video summary
@@ -164,7 +167,8 @@ prompts:
     2. Decide the next sampling action to find missing clues.
 
     Question: "{QUESTION}"
-    Options: "{OPTIONS}"
+    Options: 
+    "{OPTIONS}"
     Current Receptive Field (Just explored): {START_TIME}s to {END_TIME}s.
     Is Global View: {IS_GLOBAL}
 
@@ -227,7 +231,8 @@ prompts:
     2. Evaluate the quality of the **Accumulated Evidence** (Previous + New) and decide termination.
 
     Question: "{QUESTION}"
-    Options: "{OPTIONS}"
+    Options: 
+    "{OPTIONS}"
     Previous Evidence: "{DESC_OLD}"
     Other Videos Evidence: 
     "{OTHER_DESCS_TEXT}"
