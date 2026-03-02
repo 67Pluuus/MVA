@@ -222,7 +222,7 @@ class AgentRunner:
 
             if self.config['parameters'].get('print_output', False): 
                 ed = time.time()
-                print(f"Initialization of {v_name} took {(ed - st) * 1000:.2f} ms")
+                print(f"Initialization of {v_name} took {(ed - st):.2f} s")
             
             # Format initial description with time range (0 - duration)
             initial_desc = f"0.00-{v_duration:.2f}: {desc_new_part}"
@@ -254,12 +254,16 @@ class AgentRunner:
                 'score': score_new,
                 'priority': TextBank['videos'][v_name].get('priority', 1.0)
             })
+            
+            if g_term:
+                global_terminated = True
+                break
 
         # Phase 2: Main Iteration Loop
         max_iterations = self.config['parameters'].get('agent', {}).get('global_max_iterations', 10)
         skip_iteration = self.config['parameters'].get('agent', {}).get('skip_iteration', False)
 
-        if skip_iteration:
+        if skip_iteration or global_terminated:
             global_terminated = True
 
         iteration_count = 0
@@ -329,7 +333,7 @@ class AgentRunner:
             ed = time.time()
             
             if self.config['parameters'].get('print_output', False): 
-                print(f"Tool Agent finished for {v_curr_name}, took {(ed - st) * 1000:.2f} ms")
+                print(f"Tool Agent finished for {v_curr_name}, took {(ed - st):.2f} s")
 
             # Update frame bank with SCORED candidates
             # Important: We store the ORIGINAL (clean) frames in the bank, not the timestamped ones
@@ -413,7 +417,7 @@ class AgentRunner:
 
             if self.config['parameters'].get('print_output', False): 
                 ed = time.time()
-                print(f"Desc Agent finished for {v_curr_name}, took {(ed - st) * 1000:.2f} ms")
+                print(f"Desc Agent finished for {v_curr_name}, took {(ed - st):.2f} s")
             
             # Update Description
             # Get accurate times from actual sampled frames
@@ -575,7 +579,7 @@ class AgentRunner:
 
             if self.config['parameters'].get('print_output', False):
                 ed = time.time()
-                print(f"Answer generation took {(ed - st) * 1000:.2f} ms")
+                print(f"Answer generation took {(ed - st):.2f} s")
             
             ans_output_clean = output_text.strip()
             predicted_ans = ans_output_clean if ans_output_clean else ""
