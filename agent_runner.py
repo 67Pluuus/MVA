@@ -205,6 +205,10 @@ class AgentRunner:
             
             # Use describe_and_evaluate
             # Note: describe_and_evaluate expects desc_old. For init, use empty string.
+            if self.config['parameters'].get('print_output', False):    
+                print(f"Initializing description and score for {v_name}")
+            st = time.time()
+
             desc_new_part, score_new, v_term, g_term = desc_agent.describe_and_evaluate(
                 question, 
                 frames=frame_paths, 
@@ -213,6 +217,10 @@ class AgentRunner:
                 video_label=v_label_str,
                 options_text=options_text
             )
+
+            if self.config['parameters'].get('print_output', False): 
+                ed = time.time()
+                print(f"Initialization of {v_name} took {(ed - st) * 1000:.2f} ms")
             
             # Format initial description with time range (0 - duration)
             initial_desc = f"0.00-{v_duration:.2f}: {desc_new_part}"
@@ -302,6 +310,11 @@ class AgentRunner:
             existing_bank_frames = v_curr['frame_bank']
             current_video_desc = v_curr.get('description', "No description yet.")
             other_videos_desc = {k: v.get('description', 'No description.') for k, v in TextBank['videos'].items() if k != v_curr_name}
+
+            if self.config['parameters'].get('print_output', False): 
+                print(f"Tool Agent start for {v_curr_name}")
+                st = time.time()
+            
             candidate_scores, option, target_start, target_end = tool_agent.decide_action(
                 question,
                 existing_bank_frames,
@@ -312,7 +325,11 @@ class AgentRunner:
                 other_videos_desc=other_videos_desc,
                 options_text=options_text
             )
+            ed = time.time()
             
+            if self.config['parameters'].get('print_output', False): 
+                print(f"Tool Agent finished for {v_curr_name}, took {(ed - st) * 1000:.2f} ms")
+
             # Update frame bank with SCORED candidates
             # Important: We store the ORIGINAL (clean) frames in the bank, not the timestamped ones
             # Timestamps are only for Agent's "eyes" during reasoning.
@@ -379,6 +396,10 @@ class AgentRunner:
             # --- Desc Agent Work ---
             # Describe NEW frames AND Evaluate status in ONE call
             other_descs = {k: v['description'] for k, v in TextBank['videos'].items() if k != v_curr_name}
+
+            if self.config['parameters'].get('print_output', False): 
+                print(f"Desc Agent start for {v_curr_name}")
+                st = time.time()
             
             desc_new_part, score_new, v_term, g_term = desc_agent.describe_and_evaluate(
                 question, 
@@ -388,6 +409,10 @@ class AgentRunner:
                 video_label=v_label,
                 options_text=options_text
             )
+
+            if self.config['parameters'].get('print_output', False): 
+                ed = time.time()
+                print(f"Desc Agent finished for {v_curr_name}, took {(ed - st) * 1000:.2f} ms")
             
             # Update Description
             # Get accurate times from actual sampled frames
@@ -533,7 +558,9 @@ class AgentRunner:
                     # Prepend description is standard practice
                     current_prompt_template = current_prompt_template.replace("Question:", f"Video Descriptions:\n{final_descriptions_str}\n\nQuestion:")
 
-            
+            if self.config['parameters'].get('print_output', False):
+                print("=======Start Answering=====")
+                st = time.time()
 
             output_text = answer(
                 video_frames=final_frame_paths,
@@ -541,8 +568,13 @@ class AgentRunner:
                 options=options_text,
                 prompt_template=current_prompt_template,
                 device_id=self.device_id,
-                model_path=self.config['models']['main_model_path']
+                model_path=self.config['models']['main_model_path'],
+                print_data=self.config['parameters'].get('print_output', False)
             )
+
+            if self.config['parameters'].get('print_output', False):
+                ed = time.time()
+                print(f"Answer generation took {(ed - st) * 1000:.2f} ms")
             
             ans_output_clean = output_text.strip()
             predicted_ans = ans_output_clean if ans_output_clean else ""

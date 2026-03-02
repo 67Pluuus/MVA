@@ -164,7 +164,7 @@ prompts:
     2. Decide the next sampling action to find missing clues.
 
     Question: "{QUESTION}"
-    Options: {OPTIONS}
+    Options: "{OPTIONS}"
     Current Receptive Field (Just explored): {START_TIME}s to {END_TIME}s.
     Is Global View: {IS_GLOBAL}
 
