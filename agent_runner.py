@@ -191,19 +191,28 @@ class AgentRunner:
                 'frame_bank': []
             }
             
-            # Uniform sampling
+            # Initialize uniformly sampled frames first
             safe_v_name = v_name.replace(" ", "_")
-            # 初始化均匀采样计数
             self.uniform_sample_count[v_path] = 0
             frames_info = self._init_extract_uniform_frames(v_path, 8, q_id, safe_v_name, offset=0.0)
+            
+            # Immediately add initial frames to frame_bank with score 0.5
+            for f_info in frames_info:
+                TextBank['videos'][v_name]['frame_bank'].append((f_info['path'], 0.5, f_info['time']))
+            
+            TextBank['videos'][v_name]['frame_bank'].sort(key=lambda x: x[1], reverse=True)
+            bank_limit = self.config['parameters']['agent'].get('frame_bank_size', 16)
+            if len(TextBank['videos'][v_name]['frame_bank']) > bank_limit:
+                TextBank['videos'][v_name]['frame_bank'] = TextBank['videos'][v_name]['frame_bank'][:bank_limit]
             
             # Use DescAgent to generate initial description and score
             v_label_str = v_name
             # For initialization, later videos can see descriptions of already initialized videos
             other_descs = {k: v.get('description', 'No description.') for k, v in TextBank['videos'].items() if k != v_name and v.get('description') != ""}
             
-            # Pass frames paths
-            frame_paths = [f['path'] for f in frames_info]
+            # Create timestamped frames for DescAgent specifically
+            init_vis_frames = self._add_timestamp_to_frames(frames_info)
+            frame_paths = [f['path'] for f in init_vis_frames]
             
             # Use describe_and_evaluate
             # Note: describe_and_evaluate expects desc_old. For init, use empty string.
@@ -219,15 +228,12 @@ class AgentRunner:
                 video_label=v_label_str,
                 options_text=options_text
             )
-
             if self.config['parameters'].get('print_output', False): 
                 ed = time.time()
                 print(f"Initialization of {v_name} took {(ed - st):.2f} s")
             
             # Format initial description with time range (0 - duration)
             initial_desc = f"0.00-{v_duration:.2f}: {desc_new_part}"
-
-            # We don't add frames to bank here, they will be scored by ToolAgent in loop or if terminated
             
             TextBank['videos'][v_name]['current_frames'] = frames_info
             TextBank['videos'][v_name]['description'] = initial_desc
@@ -242,9 +248,18 @@ class AgentRunner:
             
             # Check termination immediately
             if v_term:
-                 TextBank['videos'][v_name]['status'] = 'desc_terminated'
-                 for f_info in frames_info:
-                     TextBank['videos'][v_name]['frame_bank'].append((f_info['path'], 1.0, f_info['time']))
+                TextBank['videos'][v_name]['status'] = 'desc_terminated'
+
+                for f_info in frames_info:
+                    path = f_info['path']
+                    for idx_bank, item in enumerate(TextBank['videos'][v_name]['frame_bank']):
+                        if item[0] == path:
+                            TextBank['videos'][v_name]['frame_bank'][idx_bank] = (path, score_new, f_info['time'])
+                            break
+                
+                TextBank['videos'][v_name]['frame_bank'].sort(key=lambda x: x[1], reverse=True)
+                if len(TextBank['videos'][v_name]['frame_bank']) > bank_limit:
+                    TextBank['videos'][v_name]['frame_bank'] = TextBank['videos'][v_name]['frame_bank'][:bank_limit]
             
             process_logs['initialization'].append({
                 'video': v_name,
@@ -398,6 +413,10 @@ class AgentRunner:
                 
             # Note: We do NOT add new frames to bank yet. They will be scored in the NEXT iteration.
             
+            # Create timestamped frames for DescAgent specifically
+            new_vis_frames = self._add_timestamp_to_frames(new_frames_info)
+            new_vis_frame_paths = [f['path'] for f in new_vis_frames]
+            
             # --- Desc Agent Work ---
             # Describe NEW frames AND Evaluate status in ONE call
             other_descs = {k: v['description'] for k, v in TextBank['videos'].items() if k != v_curr_name}
@@ -408,7 +427,7 @@ class AgentRunner:
             
             desc_new_part, score_new, v_term, g_term = desc_agent.describe_and_evaluate(
                 question, 
-                frames=new_frame_paths, 
+                frames=new_vis_frame_paths, 
                 desc_old=v_curr['description'], 
                 other_descs=other_descs, 
                 video_label=v_label,
@@ -478,18 +497,6 @@ class AgentRunner:
             
             iteration_count += 1
             
-        # --- Handle empty frame banks before Result Generation ---
-        # 兜底逻辑：如果存在视频在初始化后，从未被 ToolAgent 选中迭代打分，且没有触发自身的 v_term 或 g_term，
-        # 那么它的 frame_bank 将始终为空。我们在最终问答前，强制将其 current_frames 赋1分放入 frame_bank 中，保证模型可见。
-        for v_name, v_data in TextBank['videos'].items():
-            if not v_data['frame_bank'] and v_data.get('current_frames'):
-                for f_info in v_data['current_frames']:
-                    v_data['frame_bank'].append((f_info['path'], 1.0, f_info['time']))
-                v_data['frame_bank'].sort(key=lambda x: x[1], reverse=True)
-                bank_limit = self.config['parameters']['agent'].get('frame_bank_size', 16)
-                if len(v_data['frame_bank']) > bank_limit:
-                    v_data['frame_bank'] = v_data['frame_bank'][:bank_limit]
-
         # Phase 3: Result Generation
         final_frame_paths = []
         final_descriptions_list = []
