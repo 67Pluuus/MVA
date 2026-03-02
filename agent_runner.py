@@ -478,6 +478,18 @@ class AgentRunner:
             
             iteration_count += 1
             
+        # --- Handle empty frame banks before Result Generation ---
+        # 兜底逻辑：如果存在视频在初始化后，从未被 ToolAgent 选中迭代打分，且没有触发自身的 v_term 或 g_term，
+        # 那么它的 frame_bank 将始终为空。我们在最终问答前，强制将其 current_frames 赋1分放入 frame_bank 中，保证模型可见。
+        for v_name, v_data in TextBank['videos'].items():
+            if not v_data['frame_bank'] and v_data.get('current_frames'):
+                for f_info in v_data['current_frames']:
+                    v_data['frame_bank'].append((f_info['path'], 1.0, f_info['time']))
+                v_data['frame_bank'].sort(key=lambda x: x[1], reverse=True)
+                bank_limit = self.config['parameters']['agent'].get('frame_bank_size', 16)
+                if len(v_data['frame_bank']) > bank_limit:
+                    v_data['frame_bank'] = v_data['frame_bank'][:bank_limit]
+
         # Phase 3: Result Generation
         final_frame_paths = []
         final_descriptions_list = []
