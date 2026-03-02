@@ -18,8 +18,8 @@ parameters:
   # 任务数量, -1 表示所有
   num_tasks: 10
   sub_task: "all"
-  save_key_frames: false
-  save_video_frames: false
+  save_key_frames: true
+  save_video_frames: true
   number_type: "ABC"
 
   use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
