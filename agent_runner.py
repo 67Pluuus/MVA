@@ -96,6 +96,8 @@ class AgentRunner:
         Returns:
             dict: The complete result data structure.
         """
+        if self.config['parameters'].get('print_output', False):
+            print("\n\n\n")
         paths = self.config['paths']
         params = self.config['parameters']
         prompts = self.config['prompts']
