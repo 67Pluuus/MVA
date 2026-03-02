@@ -408,8 +408,8 @@ class AgentRunner:
                  # Append new observation to existing history
                  v_curr['description'] += f"\n{formatted_desc_part}"
 
-            old_score = min(v_curr['last_score'], 0.01) # Avoid zero division and treat very low scores as 0.01 for acceleration calculation
-            acceleration = (score_new - old_score) / old_score if old_score > 0 else 0.0
+            old_score = v_curr['last_score'] # Avoid zero division and treat very low scores as 0.01 for acceleration calculation
+            acceleration = (score_new - min(old_score, 0.01)) / old_score if old_score > 0 else 0.0
             
             # Update state
             v_curr['last_score'] = score_new
@@ -592,6 +592,7 @@ class AgentRunner:
         return {
             'key': key,
             'question': question,
+            'options': options_raw,
             'task': task_name,
             'predicted_answer': predicted_ans,
             'ground_truth': ground_truth,
