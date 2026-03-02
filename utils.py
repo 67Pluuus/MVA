@@ -97,7 +97,7 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
     return final_output
 
 
-def answer(video_frames, question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct"):
+def answer(video_frames, question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False):
     """
     Generate an answer based on video frames and a question.
     
@@ -109,6 +109,7 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
                         If provided, it replaces the default prompt construction.
         device_id: GPU ID.
         model_path: Model path.
+        print_data: Whether to print the input data for debugging.
     """
     # User provided template. Try to format it if it has placeholders.
     # Use safe formatting to avoid errors if keys are missing in template but present in args, or vice-versa
@@ -126,6 +127,16 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
     except Exception as e:
         print(f"Warning: Failed to format prompt template: {e}")
         prompt_text = f"{prompt_template}\n\nQuestion: {question}\nOptions:\n{options}"
+
+    if print_data:
+        print("=== Answering ===")
+        print("Question:", question)
+        print("Options:", options)
+        print("Prompt Text:", prompt_text)
+        print(f"Number of video frames: {len(video_frames)}")
+        for i, frame in enumerate(video_frames):
+            print(f"Frame {i}: {frame}")
+        print("==================")
 
     content = [
         {
@@ -152,5 +163,8 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
     except Exception as e:
         print(f"Error in answer generation: {e}")
         output_text = "Error generating answer."
+
+    if print_data:
+        print("======Model output========\n", output_text)
 
     return output_text

@@ -533,6 +533,8 @@ class AgentRunner:
                     # Prepend description is standard practice
                     current_prompt_template = current_prompt_template.replace("Question:", f"Video Descriptions:\n{final_descriptions_str}\n\nQuestion:")
 
+            
+
             output_text = answer(
                 video_frames=final_frame_paths,
                 question=question,
