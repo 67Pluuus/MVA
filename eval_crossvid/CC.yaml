@@ -138,6 +138,8 @@ prompts:
     2. Decide the next sampling action to find missing clues.
 
     Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+    
     Current Receptive Field (Just explored): {START_TIME:.2f}s to {END_TIME:.2f}s.
     Is Global View: {IS_GLOBAL}
 
@@ -200,6 +202,8 @@ prompts:
     2. Evaluate the quality of the **Accumulated Evidence** (Previous + New) and decide termination.
 
     Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+    
     Previous Evidence: "{DESC_OLD}"
     Other Videos Evidence: 
     {OTHER_DESCS_TEXT}

@@ -4,7 +4,7 @@ import sys
 import os
 
 # 默认路径
-DEFAULT_GT = r"Benchmark/CrossVid/QA/PEA_1.json"
+DEFAULT_GT = "Benchmark/CrossVid/QA/PEA_1.json"
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate PEA results")
