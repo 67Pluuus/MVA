@@ -167,6 +167,8 @@ class AgentRunner:
             'iterations': []
         }
         
+        global_terminated = False
+        
         # Phase 1: Initialization
         for idx, v_path in valid_videos:
             if self.config['parameters'].get('number_type') == "123":
