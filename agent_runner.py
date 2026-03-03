@@ -63,14 +63,12 @@ class AgentRunner:
             
             # Update paths to be inside the log folder
             self.config['paths']['output_dir'] = base_log_dir
-            self.config['paths']['temp_frames_dir'] = os.path.join(base_log_dir, "temp_frames")
             self.config['paths']['video_frames_dir'] = os.path.join(base_log_dir, "video_frames")
             self.config['paths']['key_frames_dir'] = os.path.join(base_log_dir, "key_frames")
         
         # Prepare directories
         os.makedirs(self.config['paths']['output_dir'], exist_ok=True)
         # Also create subdirectories if they are used directly (some scripts might rely on them existing)
-        os.makedirs(self.config['paths']['temp_frames_dir'], exist_ok=True)
         os.makedirs(self.config['paths']['video_frames_dir'], exist_ok=True)
         os.makedirs(self.config['paths']['key_frames_dir'], exist_ok=True)
         

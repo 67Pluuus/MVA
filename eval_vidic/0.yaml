@@ -16,7 +16,7 @@ parameters:
   describe_frames: 8
   num_gpus: 1
   # 任务数量, -1 表示所有
-  num_tasks: 10
+  num_tasks: 5
   sub_task: "all"
   save_key_frames: true
   save_video_frames: true
