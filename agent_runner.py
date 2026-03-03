@@ -760,10 +760,11 @@ class AgentRunner:
                     h, w = img.shape[:2]
                     
                     # Dynamic scale based on height (Base 1.0 for 720p)
-                    font_scale = max(0.5, h / 720.0)
-                    thickness = max(1, int(2 * font_scale))
+                    font_scale = max(1.0, h / 400.0)
+                    thickness = max(2, int(3 * font_scale))
                     
-                    color_text = (0, 255, 255) # Yellow
+                    color_label = (0, 255, 255) # Yellow
+                    color_time = (0, 0, 255)    # Red
                     color_border = (0, 0, 0)   # Black
                     
                     # 1. Video Label
@@ -776,7 +777,7 @@ class AgentRunner:
                     
                     # Border & Text
                     cv2.putText(img, video_label, (x_label, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_border, thickness + 2, cv2.LINE_AA)
-                    cv2.putText(img, video_label, (x_label, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_text, thickness, cv2.LINE_AA)
+                    cv2.putText(img, video_label, (x_label, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_label, thickness, cv2.LINE_AA)
 
                     # 2. Timestamp (below label)
                     time_text = f"{time_val:.2f}s"
@@ -787,7 +788,7 @@ class AgentRunner:
                     
                     # Border & Text
                     cv2.putText(img, time_text, (x_time, y_time), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_border, thickness + 2, cv2.LINE_AA)
-                    cv2.putText(img, time_text, (x_time, y_time), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_text, thickness, cv2.LINE_AA)
+                    cv2.putText(img, time_text, (x_time, y_time), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_time, thickness, cv2.LINE_AA)
                     
                     cv2.imwrite(dst_path, img)
             except Exception as e:
@@ -823,10 +824,30 @@ class AgentRunner:
         """
         Mode 1: (video_tag) - Add Video Label ONLY.
         """
+        h, w = img.shape[:2]
+        # Dynamic scale based on height (Base 1.0 for 720p)
+        font_scale = max(1.0, h / 400.0)
+        thickness = max(2, int(3 * font_scale))
+        
+        color_label = (0, 255, 255) # Yellow
+        color_border = (0, 0, 0)    # Black
+        
+        # Determine label text
         if self.config['parameters'].get('number_type') == "123":
-            cv2.putText(img, f"Video {video_idx}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 0, 255), 3, cv2.LINE_AA)
+            label = f"Video {video_idx}"
         else:
-            cv2.putText(img, f"Video {chr(ord('A') + video_idx - 1)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 255, 0), 3, cv2.LINE_AA)
+            label = f"Video {chr(ord('A') + video_idx - 1)}"
+            
+        pad_x = int(20 * font_scale)
+        pad_y = int(30 * font_scale)
+        
+        text_size_label = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+        x_label = pad_x
+        y_label = pad_y + text_size_label[1]
+        
+        # Border & Text
+        cv2.putText(img, label, (x_label, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_border, thickness + 2, cv2.LINE_AA)
+        cv2.putText(img, label, (x_label, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_label, thickness, cv2.LINE_AA)
         
         return img
 
@@ -834,13 +855,38 @@ class AgentRunner:
         """
         Mode 2: (temporal_tag) - Add Timestamp (or progress?) ONLY.
         """
-        # Requirement: "帧在视频中的时间戳"
-        # Previous implementation was progress bar. 
-        # But user says "temporal_tag: 帧在视频中的时间戳".
-        # Let's just put the text.
+        h, w = img.shape[:2]
+        # Dynamic scale based on height (Base 1.0 for 720p)
+        font_scale = max(1.0, h / 400.0)
+        thickness = max(2, int(3 * font_scale))
         
+        color_time = (0, 0, 255)    # Red
+        color_border = (0, 0, 0)    # Black
+        
+        # Calculate Label Position (To check where to put timestamp)
+        # Even if label is not drawn, we reserve the space so it matches the other view.
+        # Determine label text (just for size calculation)
+        if self.config['parameters'].get('number_type') == "123":
+            label = f"Video {video_idx}"
+        else:
+            label = f"Video {chr(ord('A') + video_idx - 1)}"
+            
+        pad_x = int(20 * font_scale)
+        pad_y = int(30 * font_scale)
+        
+        text_size_label = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+        y_label_bottom = pad_y + text_size_label[1]
+        
+        # Timestamp
         text = f"{time_sec:.2f}s"
-        cv2.putText(img, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255), 3, cv2.LINE_AA)
+        text_size_time = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+        
+        x_time = pad_x
+        y_time = y_label_bottom + int(10 * font_scale) + text_size_time[1]
+        
+        # Border & Text
+        cv2.putText(img, text, (x_time, y_time), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_border, thickness + 2, cv2.LINE_AA)
+        cv2.putText(img, text, (x_time, y_time), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_time, thickness, cv2.LINE_AA)
         
         return img
 
