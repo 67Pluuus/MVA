@@ -211,7 +211,7 @@ class AgentRunner:
             other_descs = {k: v.get('description', 'No description.') for k, v in TextBank['videos'].items() if k != v_name and v.get('description') != ""}
             
             # Create timestamped frames for DescAgent specifically
-            init_vis_frames = self._add_timestamp_to_frames(frames_info)
+            init_vis_frames = self._add_timestamp_to_frames(frames_info, v_label_str)
             frame_paths = [f['path'] for f in init_vis_frames]
             
             # Use describe_and_evaluate
@@ -326,7 +326,7 @@ class AgentRunner:
 
             # --- Tool Agent Work ---
             current_candidate_frames = v_curr['current_frames']
-            current_vis_frames = self._add_timestamp_to_frames(current_candidate_frames)
+            current_vis_frames = self._add_timestamp_to_frames(current_candidate_frames, v_label)
             existing_bank_frames = v_curr['frame_bank']
             current_video_desc = v_curr.get('description', "No description yet.")
             other_videos_desc = {k: v.get('description', 'No description.') for k, v in TextBank['videos'].items() if k != v_curr_name}
@@ -414,7 +414,7 @@ class AgentRunner:
             # Note: We do NOT add new frames to bank yet. They will be scored in the NEXT iteration.
             
             # Create timestamped frames for DescAgent specifically
-            new_vis_frames = self._add_timestamp_to_frames(new_frames_info)
+            new_vis_frames = self._add_timestamp_to_frames(new_frames_info, v_label)
             new_vis_frame_paths = [f['path'] for f in new_vis_frames]
             
             # --- Desc Agent Work ---
@@ -734,9 +734,9 @@ class AgentRunner:
                 frames_info.append({'path': f_path, 'time': t})
         return frames_info
 
-    def _add_timestamp_to_frames(self, frames_info: List[dict]) -> List[dict]:
+    def _add_timestamp_to_frames(self, frames_info: List[dict], video_label: str) -> List[dict]:
         """
-        Add timestamp watermark to temporary copies of frames for Tool Agent visualization.
+        Add timestamp and video label watermark to temporary copies of frames.
         Returns a list of NEW frame paths (temporary).
         """
         new_frames = []
@@ -753,15 +753,45 @@ class AgentRunner:
             name, ext = os.path.splitext(file_name)
             dst_path = os.path.join(dir_name, f"{name}_ts{ext}")
             
-            # If already exists (maybe from previous call), just use it
-            if not os.path.exists(dst_path):
+            # Always regenerate to ensure watermark updates (e.g. if position/style changed)
+            try:
                 img = cv2.imread(src_path)
                 if img is not None:
-                    # Add timestamp watermark
-                    text = f"{time_val:.2f}s"
-                    # Yellow text, size 1.0, thickness 2
-                    cv2.putText(img, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2, cv2.LINE_AA)
+                    h, w = img.shape[:2]
+                    
+                    # Dynamic scale based on height (Base 1.0 for 720p)
+                    font_scale = max(0.5, h / 720.0)
+                    thickness = max(1, int(2 * font_scale))
+                    
+                    color_text = (0, 255, 255) # Yellow
+                    color_border = (0, 0, 0)   # Black
+                    
+                    # 1. Video Label
+                    pad_x = int(20 * font_scale)
+                    pad_y = int(30 * font_scale)
+                    
+                    text_size_label = cv2.getTextSize(video_label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+                    x_label = pad_x
+                    y_label = pad_y + text_size_label[1]
+                    
+                    # Border & Text
+                    cv2.putText(img, video_label, (x_label, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_border, thickness + 2, cv2.LINE_AA)
+                    cv2.putText(img, video_label, (x_label, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_text, thickness, cv2.LINE_AA)
+
+                    # 2. Timestamp (below label)
+                    time_text = f"{time_val:.2f}s"
+                    text_size_time = cv2.getTextSize(time_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+                    
+                    x_time = pad_x
+                    y_time = y_label + int(10 * font_scale) + text_size_time[1]
+                    
+                    # Border & Text
+                    cv2.putText(img, time_text, (x_time, y_time), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_border, thickness + 2, cv2.LINE_AA)
+                    cv2.putText(img, time_text, (x_time, y_time), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color_text, thickness, cv2.LINE_AA)
+                    
                     cv2.imwrite(dst_path, img)
+            except Exception as e:
+                print(f"Error adding watermark: {e}")
                     
             new_frames.append({'path': dst_path, 'time': time_val})
             
