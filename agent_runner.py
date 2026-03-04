@@ -233,7 +233,7 @@ class AgentRunner:
                 print(f"Initialization of {v_name} took {(ed - st):.2f} s")
             
             # Format initial description with time range (0 - duration)
-            initial_desc = f"0.00-{v_duration:.2f}: {desc_new_part}"
+            initial_desc = f"0.00-{v_duration:.2f}: {desc_new_part} (Score: {score_new:.2f})"
             
             TextBank['videos'][v_name]['current_frames'] = frames_info
             TextBank['videos'][v_name]['description'] = initial_desc
@@ -296,17 +296,17 @@ class AgentRunner:
             for v_k, v_v in active_videos.items():
                 v_v['priority'] = calculate_priority_score(v_v['last_score'], v_v['last_acceleration'], self.config)
 
-            # --- 终止逻辑：加速度低于阈值则终止该视频 ---
             for v_k, v_v in active_videos.items():
                 if v_v['last_acceleration'] < min_accel:
                     v_v['status'] = 'accel_terminated'
-                    v_v['last_score'] = max_score
+                if v_v['last_score'] >= max_score:
+                    v_v['status'] = 'score_terminated'
 
-            # --- 终止逻辑：所有视频平均分超过阈值则整体终止 ---
-            all_scores = [v['last_score'] for v in TextBank['videos'].values()]
-            if all_scores and sum(all_scores)/len(all_scores) >= max_score:
-                global_terminated = True
-                break
+            # # --- 终止逻辑：所有视频平均分超过阈值则整体终止 ---
+            # all_scores = [v['last_score'] for v in TextBank['videos'].values()]
+            # if all_scores and sum(all_scores)/len(all_scores) >= max_score:
+            #     global_terminated = True
+            #     break
 
             # 重新筛选活跃视频
             active_videos = {k: v for k, v in TextBank['videos'].items() if v['status'] == 'active'}
@@ -449,7 +449,7 @@ class AgentRunner:
                 start_desc = target_start
                 end_desc = target_end
                 
-            formatted_desc_part = f"{start_desc:.2f}-{end_desc:.2f}: {desc_new_part}"
+            formatted_desc_part = f"{start_desc:.2f}-{end_desc:.2f}: {desc_new_part} (Score: {score_new:.2f})"
 
             if v_curr['description'] == "Initial observation." or v_curr['description'] == "":
                  v_curr['description'] = formatted_desc_part
@@ -457,9 +457,10 @@ class AgentRunner:
                  # Append new observation to existing history
                  v_curr['description'] += f"\n{formatted_desc_part}"
 
-            old_score = v_curr['last_score'] # Avoid zero division and treat very low scores as 0.01 for acceleration calculation
-            acceleration = (score_new - min(old_score, 0.01)) / old_score if old_score > 0 else 0.0
-            
+            old_score = v_curr['last_score']
+            # Calculate standard improvement rate: (new - old) / old
+            # Use a small epsilon for denominator to avoid division by zero
+            acceleration = (score_new - old_score) / max(old_score, 0.01)
             # Update state
             v_curr['last_score'] = score_new
             v_curr['last_acceleration'] = acceleration
@@ -469,7 +470,7 @@ class AgentRunner:
                 v_curr['status'] = 'desc_terminated'
                 # If desc_agent terminates, force add current frames with 1.0 score
                 for f_info in v_curr['current_frames']:
-                     v_curr['frame_bank'].append((f_info['path'], 1.0, f_info['time']))
+                     v_curr['frame_bank'].append((f_info['path'], score_new, f_info['time']))
                 # Re-sort and truncate
                 v_curr['frame_bank'].sort(key=lambda x: x[1], reverse=True)
                 if len(v_curr['frame_bank']) > self.config['parameters']['agent'].get('frame_bank_size', 16):
@@ -479,7 +480,7 @@ class AgentRunner:
                 # Global termination -> force add ALL active current frames (for the current video)
                 if not v_term: # If not already handled above
                      for f_info in v_curr['current_frames']:
-                        v_curr['frame_bank'].append((f_info['path'], 1.0, f_info['time']))
+                        v_curr['frame_bank'].append((f_info['path'], score_new, f_info['time']))
                      v_curr['frame_bank'].sort(key=lambda x: x[1], reverse=True)
                      if len(v_curr['frame_bank']) > self.config['parameters']['agent'].get('frame_bank_size', 16):
                         v_curr['frame_bank'] = v_curr['frame_bank'][:self.config['parameters']['agent'].get('frame_bank_size', 16)]

@@ -70,7 +70,13 @@ class ToolAgent:
         content = []
         if self.config['parameters'].get('print_output', False):
             print("============Tool Agent Prompt===========")
-            print(prompt)
+            print(f"Questoin: {question}")
+            print(f"Options: {options_text}")
+            print(f"Video Label: {video_label}")
+            print(f"Start Time: {start_time:.2f}")
+            print(f"End Time: {end_time:.2f}")
+            print(f"Current Video Description: {current_video_desc}")
+            print(f"Other Videos Description: {other_videos_str}")
             print("============Tool Agent Current Frame for Scoring===========")
         # Add visual content ONLY for current frames (to score them)
         for f in current_paths:
@@ -123,6 +129,7 @@ class ToolAgent:
             option = 1
         
         if self.config['parameters'].get('print_output', False):
+            print("\n=============Parsed Description and Status============")
             print(f"Parsed Scores: {scores}")
             print(f"Parsed Option: {option}")
             print(f"Parsed Target Start: {target_start}")
@@ -157,34 +164,21 @@ class DescAgent:
         
         prompt_template = self.config['prompts'].get('desc_combined_action')
         # If no template, use default
-        if prompt_template:
-            prompt = prompt_template.replace("{QUESTION}", question) \
-                                    .replace("{VIDEO_LABEL}", video_label) \
-                                    .replace("{DESC_OLD}", desc_old) \
-                                    .replace("{OTHER_DESCS_TEXT}", other_descs_text) \
-                                    .replace("{OPTIONS}", options_text)
-        else:
-            prompt = f"""
-You are a Desc Agent.
-Task 1: Generate a concise description of the new visual content from the provided frames, relevant to the Question.
-Task 2: Evaluate the quality of the FULL description (Previous + New) and decide if we should stop exploring.
 
-Question: "{question}"
-Previous description of this video: "{desc_old}"
-Descriptions of other videos:
-{other_descs_text}
+        prompt = prompt_template.replace("{QUESTION}", question) \
+                                .replace("{VIDEO_LABEL}", video_label) \
+                                .replace("{DESC_OLD}", desc_old) \
+                                .replace("{OTHER_DESCS_TEXT}", other_descs_text) \
+                                .replace("{OPTIONS}", options_text)
 
-Output format:
-New Description: <concise description of provided frames>
----
-Score: <score 0.00-1.00 for the FULL description>
-Video Terminated: <True/False>
-Global Terminated: <True/False>
-"""
         content = []
         if self.config['parameters'].get('print_output', False):
             print("============Desc Agent Prompt===========")
-            print(prompt)
+            print(f"Question: {question}")
+            print(f"Options: {options_text}")
+            print(f"Video label: {video_label}")
+            print(f"Old Description: {desc_old}")
+            print(f"Other Videos Description: {other_descs_text}")
             print("============Desc Agent Frame for Description===========")
 
         for f in frames:
@@ -236,6 +230,7 @@ Global Terminated: <True/False>
             global_terminated = g_term_match.group(1).lower() == 'true'
 
         if self.config['parameters'].get('print_output', False):
+            print("\n=============Parsed Description and Status============")
             print(f"Parsed Description: {desc_new}")
             print(f"Parsed Score: {score_new}")
             print(f"Parsed Video Terminated: {video_terminated}")
