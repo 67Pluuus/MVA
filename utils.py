@@ -142,7 +142,7 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
         if print_data:
             print(f"Path: {path}, Score: {score}")
             
-        if score > 0.5:
+        if score >= 0.5:
             filtered_frames.append((path, score))
     
     video_frames = filtered_frames
