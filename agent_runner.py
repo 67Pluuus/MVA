@@ -97,7 +97,7 @@ class AgentRunner:
         if self.config['parameters'].get('print_output', False):
             print("\n\n\n")
         paths = self.config['paths']
-        params = self.config['parameters']
+        params = self.config['parameters']  
         prompts = self.config['prompts']
         
         # Extract basic info
@@ -682,7 +682,13 @@ class AgentRunner:
                 return None
             
             fps = cap.get(cv2.CAP_PROP_FPS)
+            total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
             frame_idx = int(time_sec * fps)
+            
+            # Safety check: ensure frame_idx is within valid range
+            if total_frames > 0 and frame_idx >= total_frames:
+                frame_idx = int(total_frames) - 1
+                
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
             ret, frame = cap.read()
             cap.release()
