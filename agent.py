@@ -70,7 +70,7 @@ class ToolAgent:
         content = []
         if self.config['parameters'].get('print_output', False):
             print("============Tool Agent Prompt===========")
-            print(f"Questoin: {question}")
+            print(f"Question: {question}")
             print(f"Options: {options_text}")
             print(f"Video Label: {video_label}")
             print(f"Start Time: {start_time:.2f}")
