@@ -925,16 +925,16 @@ class AgentRunner:
         cv2.imwrite(trans_path, trans_img)
         
         # Add separator frame FIRST
-        watermarked_paths.append(trans_path)
+        watermarked_paths.append((trans_path, 1.0))
             
         # Add regular frames (just copy them to be safe, or just return path if no other watermark)
 
-        for i, (src, _, _) in enumerate(frame_bank):
-             watermarked_paths.append(src)
+        for i, (src, score, _) in enumerate(frame_bank):
+             watermarked_paths.append((src, score))
              
         return watermarked_paths
 
-    def _apply_watermark_to_bank(self, frame_bank: List[tuple], video_idx: int, q_id: str, v_name: str, video_duration: float = 0.0) -> List[str]:
+    def _apply_watermark_to_bank(self, frame_bank: List[tuple], video_idx: int, q_id: str, v_name: str, video_duration: float = 0.0) -> List[tuple]:
         # Sort frame bank by timestamp before processing
         # frame_bank items are (path, score, time)
         sorted_bank = sorted(frame_bank, key=lambda x: x[2])
@@ -943,7 +943,7 @@ class AgentRunner:
         
         # If disabled or unknown
         if wm_type == 'none':
-            return [f[0] for f in sorted_bank]
+            return [(f[0], f[1]) for f in sorted_bank]
             
         output_dir = os.path.join(self.config['paths']['key_frames_dir'], q_id, v_name)
         os.makedirs(output_dir, exist_ok=True)
@@ -969,7 +969,7 @@ class AgentRunner:
                     
                     dst = os.path.join(output_dir, f"watermarked_{i}.jpg")
                     cv2.imwrite(dst, img)
-                    watermarked_paths.append(dst)
+                    watermarked_paths.append((dst, score))
                     # Keep track of time for trans sequence if needed (though transition usually doesn't need time)
                     processed_frames_with_time.append((dst, score, t_sec))
 

@@ -129,13 +129,31 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
         prompt_text = f"{prompt_template}\n\nQuestion: {question}\nOptions:\n{options}"
 
     if print_data:
+        print("=== Initial frames in frame bank ===")
+    filtered_frames = []
+    for item in video_frames:
+        if isinstance(item, (tuple, list)) and len(item) >= 2:
+            path = item[0]
+            score = item[1]
+        else:
+            path = item
+            score = 1.0 # Default keep for non-scored items (compatibility)
+            
+        if print_data:
+            print(f"Path: {path}, Score: {score}")
+            
+        if score > 0.5:
+            filtered_frames.append((path, score))
+    
+    video_frames = filtered_frames
+
+    if print_data:
         print("=== Answering ===")
         print("Question:", question)
         print("Options:", options)
-        print("Prompt Text:", prompt_text)
-        print(f"Number of video frames: {len(video_frames)}")
+        print(f"Number of filtered video frames: {len(video_frames)}")
         for i, frame in enumerate(video_frames):
-            print(f"Frame {i}: {frame}")
+            print(f"Frame {i}: Path: {frame[0]}, Score: {frame[1]}")
         print("==================")
 
     content = [
@@ -148,7 +166,7 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
     for frame in video_frames:
         content.append({
             "type": "image",
-            "image": frame
+            "image": frame[0] if isinstance(frame, tuple) else frame
         })
         
     messages = [
