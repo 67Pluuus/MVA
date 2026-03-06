@@ -13,6 +13,7 @@ models:
 
 # 运行参数
 parameters:
+  size: 360
   num_frames_iter: 8
   num_frames_noiter: 16
   num_gpus: 1

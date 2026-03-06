@@ -698,6 +698,16 @@ class AgentRunner:
             cap.release()
             
             if ret: 
+                # Resize if configured
+                target_size = self.config['parameters'].get('size', -1)
+                if target_size > 0:
+                    h, w = frame.shape[:2]
+                    if max(h, w) > target_size:
+                        scale = target_size / max(h, w)
+                        new_w = int(w * scale)
+                        new_h = int(h * scale)
+                        frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_image = Image.fromarray(frame_rgb)
                 save_path = os.path.join(output_dir, frame_name)
