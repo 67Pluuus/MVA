@@ -148,7 +148,6 @@ prompts:
     /* Output Format */
     Scores: [<space-separated list of scores for each given frame>]
     Decision: Option <number> [Range: <start>, <end>]
-    Explain: <explain your decision>
 
     **Note: Range is only needed for Option 1 and 2. Range should be within {START_TIME}s to {END_TIME}s.**
 
@@ -191,4 +190,3 @@ prompts:
     Score: <score>
     Video Terminated: <True/False>
     Global Terminated: <True/False>
-    Explain: <explain your decision>
