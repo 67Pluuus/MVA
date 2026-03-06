@@ -782,7 +782,7 @@ class AgentRunner:
                     
                     # Dynamic scale based on height (Base 1.0 for 720p)
                     font_scale = max(1.0, h / 400.0)
-                    thickness = max(2, int(3 * font_scale))
+                    thickness = max(2, int(2 * font_scale))
                     
                     color_label = (0, 255, 255) # Yellow
                     color_time = (0, 0, 255)    # Red
@@ -848,7 +848,7 @@ class AgentRunner:
         h, w = img.shape[:2]
         # Dynamic scale based on height (Base 1.0 for 720p)
         font_scale = max(1.0, h / 400.0)
-        thickness = max(2, int(3 * font_scale))
+        thickness = max(2, int(2 * font_scale))
         
         color_label = (0, 255, 255) # Yellow
         color_border = (0, 0, 0)    # Black
@@ -879,7 +879,7 @@ class AgentRunner:
         h, w = img.shape[:2]
         # Dynamic scale based on height (Base 1.0 for 720p)
         font_scale = max(1.0, h / 400.0)
-        thickness = max(2, int(3 * font_scale))
+        thickness = max(2, int(2 * font_scale))
         
         color_time = (0, 0, 255)    # Red
         color_border = (0, 0, 0)    # Black
