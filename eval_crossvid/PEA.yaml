@@ -110,7 +110,7 @@ prompts:
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
-    You can only watch one video at a time. You will receive {NUM_FRAMES} frames uniformly sampled from {VIDEO_LABEL} of {START_TIME}s to {END_TIME}s.The total duration of the video is {DURATION}s.
+    You can only watch one video at a time. You will receive {NUM_FRAMES} frames uniformly sampled from {VIDEO_LABEL} of {START_TIME}s to {END_TIME}s. The total duration of the video is {DURATION}s.
 
     Here is the additional information that may be helpful for answering the question. It is extracted from the given {VIDEO_LABEL} (Current Video Information) and other videos (Other Videos Information) by Evidence Extraction Agents.
     Current Video Information: "{CURRENT_VIDEO_DESC}"
@@ -155,7 +155,7 @@ prompts:
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
-    You can only watch one video at a time. The given video is {VIDEO_LABEL}. The total duration of the video is {DURATION}s.
+    You can only watch one video at a time. The given video is {VIDEO_LABEL}.
 
     Here is the additional information that may be helpful for answering the question. It is extracted from the given video (Previous Evidence) and other videos (Other Videos Information) by other Evidence Extraction Agents.
     Previous Evidence: "{DESC_OLD}"
