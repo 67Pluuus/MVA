@@ -19,7 +19,7 @@ echo "--------------------------------------------------------"
 
 for task in "${tasks[@]}"; do
     CONFIG_PATH="MVA/eval_crossvid/${task}.yaml"
-    OUTPUT_LOG="crossvid_${task}_run_output.log"
+    OUTPUT_LOG="crossvid_${task}_run_output_${NODE_RANK}.log"
     
     echo "Processing Task: ${task}"
     echo "Config: ${CONFIG_PATH}"

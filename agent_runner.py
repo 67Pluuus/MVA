@@ -149,16 +149,14 @@ class AgentRunner:
         tool_agent = ToolAgent(self.model, self.processor, self.config, self.device_id)
         desc_agent = DescAgent(self.model, self.processor, self.config, self.device_id)
         
-        path_prefix = f"eval_node{self.node_rank}_gpu{self.device_id}" 
         # Ensure q_id is unique across distributed nodes if key is unknown or shared
         if key != 'unknown':
             q_id = str(key)
         else:
             # Fallback: timestamp + rank + gpu to ensure uniqueness
             q_id = f"{int(time.time()*1000)}_n{self.node_rank}_g{self.device_id}"
-            
+        
         benchmark_name = paths.get('Benchmark_name', 'Benchmark')
-        question_name = os.path.join(benchmark_name, f"question{q_id}")
         
         process_logs = {
             'initialization': [],
@@ -166,6 +164,8 @@ class AgentRunner:
         }
         
         global_terminated = False
+
+        num_frames = params.get('num_frames_iter', 8) if not params.get('skip_iteration', False) else params.get('num_frames_noiter', 16)
         
         # Phase 1: Initialization
         for idx, v_path in valid_videos:
@@ -194,7 +194,7 @@ class AgentRunner:
             # Initialize uniformly sampled frames first
             safe_v_name = v_name.replace(" ", "_")
             self.uniform_sample_count[v_path] = 0
-            frames_info = self._init_extract_uniform_frames(v_path, 8, q_id, safe_v_name, offset=0.0)
+            frames_info = self._init_extract_uniform_frames(v_path, num_frames, q_id, safe_v_name, offset=0.0)
             
             # Immediately add initial frames to frame_bank with score 0.5
             for f_info in frames_info:
@@ -226,6 +226,7 @@ class AgentRunner:
                 desc_old="", 
                 other_descs=other_descs, 
                 video_label=v_label_str,
+                video_duration=v_duration,
                 options_text=options_text
             )
             if self.config['parameters'].get('print_output', False): 
@@ -276,7 +277,7 @@ class AgentRunner:
 
         # Phase 2: Main Iteration Loop
         max_iterations = self.config['parameters'].get('agent', {}).get('global_max_iterations', 10)
-        skip_iteration = self.config['parameters'].get('agent', {}).get('skip_iteration', False)
+        skip_iteration = self.config['parameters'].get('skip_iteration', False)
 
         if skip_iteration or global_terminated:
             global_terminated = True
@@ -398,7 +399,7 @@ class AgentRunner:
             
             # Execute Action
             safe_v_curr_name = v_curr_name.replace(" ", "_")
-            new_frames_info = self._sample_frames(v_curr['path'], option, target_start, target_end, v_curr['current_frames'], duration, q_id, safe_v_curr_name, iteration_count)
+            new_frames_info = self._sample_frames(v_curr['path'], option, target_start, target_end, num_frames, duration, q_id, safe_v_curr_name, iteration_count)
             new_frame_paths = [f['path'] for f in new_frames_info]
             
             if not new_frame_paths:
@@ -431,6 +432,7 @@ class AgentRunner:
                 desc_old=v_curr['description'], 
                 other_descs=other_descs, 
                 video_label=v_label,
+                video_duration=duration,
                 options_text=options_text
             )
 
@@ -531,8 +533,8 @@ class AgentRunner:
              pass 
 
         # --- Dynamic Prompt Selection based on input types ---
-        use_visual = self.config['parameters'].get('use_visual_answer', True)
-        use_text = self.config['parameters'].get('use_text_answer', True)
+        use_visual = params.get('use_visual_answer', True)
+        use_text = params.get('use_text_answer', True)
 
         if not use_visual:
             final_frame_paths = []
@@ -805,7 +807,7 @@ class AgentRunner:
             
         return new_frames
 
-    def _sample_frames(self, video_path: str, option: int, target_start: float, target_end: float, current_frames: List[dict], duration: float, q_id: str, v_name: str, iteration: int) -> List[dict]:
+    def _sample_frames(self, video_path: str, option: int, target_start: float, target_end: float, num_frames: int, duration: float, q_id: str, v_name: str, iteration: int) -> List[dict]:
         output_dir = os.path.join(self.config['paths']['video_frames_dir'], q_id, v_name)
         os.makedirs(output_dir, exist_ok=True)
         
@@ -814,11 +816,11 @@ class AgentRunner:
             if video_path not in self.uniform_sample_count:
                 self.uniform_sample_count[video_path] = 0
             self.uniform_sample_count[video_path] += 1
-            offset = (duration / (8+1) * 0.25) * self.uniform_sample_count[video_path] # 每次增加25%间隔的偏移，确保每次采样点都不同
-            return self._extract_uniform_frames(video_path, 8, q_id, v_name, offset=offset)
+            offset = (duration / (num_frames+1) * 0.25) * self.uniform_sample_count[video_path] # 每次增加25%间隔的偏移，确保每次采样点都不同
+            return self._extract_uniform_frames(video_path, num_frames, q_id, v_name, offset=offset)
             
         # For options 1-4, sample within [target_start, target_end]
-        times = np.linspace(target_start, target_end, 8 + 2)[1:-1]
+        times = np.linspace(target_start, target_end, num_frames + 2)[1:-1]
         frames_info = []
         for i, t in enumerate(times):
             f_name = f"iter{iteration}_{i}_{t:.2f}.jpg"
@@ -827,7 +829,7 @@ class AgentRunner:
                 frames_info.append({'path': f_path, 'time': t})
         return frames_info
 
-    def _wm_visual(self, img, video_idx, time_sec):
+    def _wm_visual(self, img, video_idx):
         """
         Mode 1: (video_tag) - Add Video Label ONLY.
         """
@@ -858,7 +860,7 @@ class AgentRunner:
         
         return img
 
-    def _wm_temporal(self, img, video_idx, time_sec, duration):
+    def _wm_temporal(self, img, video_idx, time_sec):
         """
         Mode 2: (temporal_tag) - Add Timestamp (or progress?) ONLY.
         """
@@ -967,11 +969,11 @@ class AgentRunner:
                 if img is not None:
                     
                     if "video_tag" in wm_type:
-                        img = self._wm_visual(img, video_idx, t_sec)
+                        img = self._wm_visual(img, video_idx)
                     
                     if 'temporal_tag' in wm_type:
                         # Use passed duration directly
-                        img = self._wm_temporal(img, video_idx, t_sec, video_duration)
+                        img = self._wm_temporal(img, video_idx, t_sec)
                     
                     dst = os.path.join(output_dir, f"watermarked_{i}.jpg")
                     cv2.imwrite(dst, img)

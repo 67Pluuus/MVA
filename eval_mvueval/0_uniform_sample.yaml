@@ -1,8 +1,10 @@
 # 路径配置
 paths:
-  Benchmark_name: "Benchmark/CrossVid"
-  video_base_dir: "Benchmark/CrossVid/videos"
-  json_file: "Benchmark/CrossVid/QA/NC_1.json"
+  # MVU Benchmark 基础路径
+  Benchmark_name: "MVU_Eval"
+  video_base_dir: "Benchmark/MVU-Eval-Data"
+  # 数据集 JSON 路径
+  json_file: "Benchmark/MVU-Eval-Data/MVU_Eval_QAs.json"
 
 # 模型配置
 models:
@@ -15,14 +17,16 @@ parameters:
   num_gpus: 1
   # 任务数量, -1 表示所有
   num_tasks: -1
+  sub_task: "all"
   save_key_frames: false
   save_video_frames: false
   number_type: "123"
 
   use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
-  use_text_answer: true # 是否提供文本描述 (对应 answer_text_only 模版)
+  use_text_answer: false # 是否提供文本描述 (对应 answer_text_only 模版)
   # 若两者均为 true, 则使用 answer_combined 模版
-  skip_iteration: false
+  print_output: false
+  skip_iteration: true # 是否跳过初始化后的迭代过程 (仅用于测试或者快速预览)
 
   # Agent 参数
   agent:
@@ -32,7 +36,7 @@ parameters:
     min_acceleration_threshold: 0.2 # 单视频最低加速度阈值，低于则终止该视频
     max_score_threshold: 0.8 # 所有视频平均分数超过则整体终止
 
-  type_watermark: "video_tag temporal_tag trans_frame" # 水印类型
+  type_watermark: "none" # 水印类型
   # 可选模式 (可叠加, 如"video_tag+temporal_tag"):
   # "video_tag": 视频标签 (左上角)
   # "temporal_tag": 时间戳 (左上角)
@@ -58,7 +62,7 @@ prompts:
 
     Your task is to analyze all the provided keyframes AND the video descriptions to answer the question. Pay attention to:
     1. The specific visual details in keyframes relevant to answering the question.
-    2. The events and details described in each video description.
+    2. The events and details described in each video summary.
     3. The differences and similarities between videos.
 
     **Output Format:**
@@ -95,7 +99,7 @@ prompts:
     {DESCRIPTIONS}
 
     Your task is to analyze the provided video descriptions to answer the question. Pay attention to:
-    1. The events and details described in each video description.
+    1. The events and details described in each video summary.
     2. The timestamps mentioned in the descriptions.
     3. The differences and similarities between videos based on their descriptions.
 
@@ -144,6 +148,7 @@ prompts:
     /* Output Format */
     Scores: [<space-separated list of scores for each given frame>]
     Decision: Option <number> [Range: <start>, <end>]
+    Explain: <explain your decision>
 
     **Note: Range is only needed for Option 1 and 2. Range should be within {START_TIME}s to {END_TIME}s.**
 
@@ -186,3 +191,4 @@ prompts:
     Score: <score>
     Video Terminated: <True/False>
     Global Terminated: <True/False>
+    Explain: <explain your decision>

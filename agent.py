@@ -63,6 +63,8 @@ class ToolAgent:
                                 .replace("{VIDEO_LABEL}", video_label) \
                                 .replace("{START_TIME}", f"{start_time:.2f}") \
                                 .replace("{END_TIME}", f"{end_time:.2f}") \
+                                .replace("{DURATION}", f"{video_duration:.2f}") \
+                                .replace("{NUM_FRAMES}", str(len(current_paths))) \
                                 .replace("{IS_GLOBAL}", str(is_global)) \
                                 .replace("{CURRENT_VIDEO_DESC}", current_video_desc) \
                                 .replace("{OTHER_VIDEOS_DESC}", other_videos_str) \
@@ -151,7 +153,7 @@ class DescAgent:
         from utils import Qwen_VL
         return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
 
-    def describe_and_evaluate(self, question: str, frames: List[str], desc_old: str, other_descs: Dict[str, str], video_label: str = "ONE of the videos", options_text: str = "") -> Tuple[str, float, bool, bool]:
+    def describe_and_evaluate(self, question: str, frames: List[str], desc_old: str, other_descs: Dict[str, str], video_duration: float, video_label: str = "ONE of the videos", options_text: str = "") -> Tuple[str, float, bool, bool]:
         """
         Generate a description from frames AND evaluate status (score, termination) in one go.
         frames: New frames to describe.
@@ -167,6 +169,7 @@ class DescAgent:
 
         prompt = prompt_template.replace("{QUESTION}", question) \
                                 .replace("{VIDEO_LABEL}", video_label) \
+                                .replace("{DURATION}", f"{video_duration:.2f}") \
                                 .replace("{DESC_OLD}", desc_old) \
                                 .replace("{OTHER_DESCS_TEXT}", other_descs_text) \
                                 .replace("{OPTIONS}", options_text)

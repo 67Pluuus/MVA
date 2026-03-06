@@ -7,7 +7,7 @@
 NUM_GPUS=1
 
 # Configuration file
-CONFIG_PATH="MVA/eval_vidic/0.yaml"
+CONFIG_PATH="MVA/eval_mvueval/0_watermark.yaml"
 
 # Multi-node settings (Default is single node 1/1)
 # Total number of nodes involved in the evaluation
@@ -25,20 +25,20 @@ fi
 GPUS=$(seq -s, 0 $((NUM_GPUS-1))) # 默认使用所有gpu, 如果需要指定gpu, 可以修改为 GPUS="0,1" 这样的格式
 
 echo "--------------------------------------------------------"
-echo "Starting ViDiC-1K Evaluation"
+echo "Starting MVU Evaluation"
 echo "--------------------------------------------------------"
 echo "Config:   ${CONFIG_PATH}"
 echo "Sub-task: ${SUB_TASK}"
-echo "Node:     ${NODE_RANK}"
+echo "Node:     ${NODE_RANK} / ${NUM_NODES}"
 echo "GPUs:     ${GPUS}"
 echo "--------------------------------------------------------"
 
 # Run the python script with the distributed parameters
 # PYTHONPATH=. ensures that the script can import modules from the project root
 # Create temp file to capture output for extraction
-OUTPUT_LOG="vidic_run_output_${SUB_TASK}_${NODE_RANK}.log"
+OUTPUT_LOG="mvu_run_output_${SUB_TASK}_${NODE_RANK}.log"
 
-PYTHONPATH=. python MVA/eval_vidic/run_vidic.py \
+PYTHONPATH=. python MVA/eval_mvueval/run_mvu_eval.py \
     --config "${CONFIG_PATH}" \
     --gpus "${GPUS}" \
     --num_nodes "${NUM_NODES}" \
@@ -49,7 +49,7 @@ RUN_STATUS=${PIPESTATUS[0]}
 
 if [ $RUN_STATUS -eq 0 ]; then
     echo "--------------------------------------------------------"
-    echo "ViDiC-1K completed successfully on Node ${NODE_RANK}."
+    echo "MVU Evaluation completed successfully on Node ${NODE_RANK}."
     
     # Extract output file path
     # Look for line "OUTPUT_FILE: /path/to/file.json"
@@ -60,14 +60,14 @@ if [ $RUN_STATUS -eq 0 ]; then
         echo "--------------------------------------------------------"
         echo "Starting Evaluation..."
         # Run evaluation
-        python MVA/eval_vidic/evaluate_vidic.py --predict "${PREDICT_FILE}"
+        python MVA/eval_mvueval/evaluate_mvu_eval.py --predict "${PREDICT_FILE}"
     else
         echo "Warning: Could not find output file path in logs. Evaluation skipped."
     fi
     echo "--------------------------------------------------------"
 else
     echo "--------------------------------------------------------"
-    echo "ViDiC-1K FAILED on Node ${NODE_RANK}."
+    echo "MVU Evaluation FAILED on Node ${NODE_RANK}."
     echo "--------------------------------------------------------"
 fi
 

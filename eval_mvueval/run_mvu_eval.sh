@@ -15,21 +15,28 @@ NUM_NODES=1
 # The rank of the current node (0, 1, 2...)
 NODE_RANK=0
 
+# Extract sub_task from config file
+SUB_TASK=$(grep "sub_task:" "${CONFIG_PATH}" | head -n 1 | sed 's/.*sub_task: //g' | tr -d '"' | tr -d "'" | tr -d '\r' | xargs)
+if [ -z "${SUB_TASK}" ]; then
+    SUB_TASK="default"
+fi
+
 # Generate GPU list string (e.g., "0,1,2,3" if NUM_GPUS=4)
 GPUS=$(seq -s, 0 $((NUM_GPUS-1))) # 默认使用所有gpu, 如果需要指定gpu, 可以修改为 GPUS="0,1" 这样的格式
 
 echo "--------------------------------------------------------"
 echo "Starting MVU Evaluation"
 echo "--------------------------------------------------------"
-echo "Config: ${CONFIG_PATH}"
-echo "Node:   ${NODE_RANK} / ${NUM_NODES}"
-echo "GPUs:   ${GPUS}"
+echo "Config:   ${CONFIG_PATH}"
+echo "Sub-task: ${SUB_TASK}"
+echo "Node:     ${NODE_RANK} / ${NUM_NODES}"
+echo "GPUs:     ${GPUS}"
 echo "--------------------------------------------------------"
 
 # Run the python script with the distributed parameters
 # PYTHONPATH=. ensures that the script can import modules from the project root
 # Create temp file to capture output for extraction
-OUTPUT_LOG="mvu_run_output.log"
+OUTPUT_LOG="mvu_run_output_${SUB_TASK}_${NODE_RANK}.log"
 
 PYTHONPATH=. python MVA/eval_mvueval/run_mvu_eval.py \
     --config "${CONFIG_PATH}" \
