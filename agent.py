@@ -77,6 +77,8 @@ class ToolAgent:
             print(f"Video Label: {video_label}")
             print(f"Start Time: {start_time:.2f}")
             print(f"End Time: {end_time:.2f}")
+            print(f"Duration: {video_duration:.2f}")
+            print(f"Number of Current Frames: {len(current_paths)}")
             print(f"Current Video Description: {current_video_desc}")
             print(f"Other Videos Description: {other_videos_str}")
             print("============Tool Agent Current Frame for Scoring===========")
