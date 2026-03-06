@@ -8,7 +8,7 @@ paths:
 
 # 模型配置
 models:
-  main_model_path: "models/Qwen2.5-VL-3B-Instruct"
+  main_model_path: "Qwen/Qwen2.5-VL-7B-Instruct"
   api_key: "7117a451621443b1b550a08acadad5e1.Mljp89b7Rwz7SeiA"
 
 parameters:
