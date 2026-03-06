@@ -1,0 +1,192 @@
+# 路径配置
+paths:
+  # Benchmark 基础路径
+  Benchmark_name: "ViDiC-1K"
+  video_base_dir: "Benchmark/ViDiC-1K/test"
+  # 数据集 JSON 路径
+  json_file: "Benchmark/ViDiC-1K/test/metadata.json"
+
+# 模型配置
+models:
+  main_model_path: "Qwen/Qwen2.5-VL-7B-Instruct"
+  api_key: "7117a451621443b1b550a08acadad5e1.Mljp89b7Rwz7SeiA"
+
+parameters:
+  num_frames_iter: 8
+  num_frames_noiter: 16
+  num_gpus: 1
+  # 任务数量, -1 表示所有
+  num_tasks: -1
+  sub_task: "all"
+  save_key_frames: false
+  save_video_frames: false
+  number_type: "ABC"
+
+  use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
+  use_text_answer: false # 是否提供文本描述 (对应 answer_text_only 模版)
+  # 若两者均为 true, 则使用 answer_combined 模版
+  print_output: false
+  skip_iteration: true # 是否跳过初始化后的迭代过程 (仅用于测试或者快速预览)
+
+  # Agent 参数
+  agent:
+    global_max_iterations: 20 # 通过Tool Agent获取信息的全局最大迭代次数
+    frame_bank_size: 16 # 每个视频最多取这么多帧
+    initial_acceleration: 1.0
+    min_acceleration_threshold: 0.2 # 单视频最低加速度阈值，低于则终止该视频
+    max_score_threshold: 0.8 # 所有视频平均分数超过则整体终止
+
+  type_watermark: "video_tag temporal_tag trans_frame" # 水印类型
+  # 可选模式 (可叠加, 如"video_tag+temporal_tag"):
+  # "video_tag": 视频标签 (左上角)
+  # "temporal_tag": 时间戳 (左上角)
+  # "trans_frame": 转场帧)
+  # "none": 无水印
+  priority_score_k: 1.0 # 优先级计算中加速权重k的值，默认1.0
+  priority_score_t: 1.0 # 优先级计算中当前分数权重t的值，默认1.0
+  # log_prefix: {Benchmark_name}_{date}_{time}_{type_watermark}
+
+# 提示词
+prompts:
+  answer_combined: |
+    /no_think
+    /* Task Description */
+    You are an Answer Generation model for the video question and answer task.
+    Here is a single-choice question about multiple videos.
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    You are provided with multiple keyframes extracted from different videos. Each frame has a watermark in the top-left corner indicating which video it belongs to (e.g., "Video A", "Video B") and its timestamp.
+    You are also provided with textual descriptions for each video:
+    {DESCRIPTIONS}
+
+    Your task is to analyze all the provided keyframes AND the video descriptions to answer the question. Pay attention to:
+    1. The specific visual details in keyframes relevant to answering the question.
+    2. The events and details described in each video summary.
+    3. The differences and similarities between videos.
+
+    **Output Format:**
+    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+
+  answer_visual_only: |
+    /no_think
+    /* Task Description */
+    You are an Answer Generation model for the video question and answer task.
+    Here is a single-choice question about multiple videos.
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    You are provided with multiple keyframes extracted from different videos. Each frame has a watermark in the top-left corner indicating which video it belongs to (e.g., "Video A", "Video B") and its timestamp.
+
+    Your task is to analyze all the provided keyframes to answer the question. Pay attention to:
+    1. The specific visual details in keyframes relevant to answering the question.
+    2. Which video each frame belongs to (indicated by the watermark).
+    3. The differences and similarities between frames from different videos.
+
+    **Output Format:**
+    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+
+  answer_text_only: |
+    /no_think
+    /* Task Description */
+    You are an Answer Generation model for the video question and answer task.
+    Here is a single-choice question about multiple videos.
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    You are provided with detailed textual descriptions for each video:
+    Video Descriptions:
+    {DESCRIPTIONS}
+
+    Your task is to analyze the provided video descriptions to answer the question. Pay attention to:
+    1. The events and details described in each video summary.
+    2. The timestamps mentioned in the descriptions.
+    3. The differences and similarities between videos based on their descriptions.
+
+    **Output Format:**
+    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+
+  tool_combined_action: |
+    /no_think
+    /* Task Description */
+    You are a Video Exploration Agent for the video question and answer task.
+    Here is a single-choice question about multiple videos.
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    You can only watch one video at a time. You will receive {NUM_FRAMES} frames uniformly sampled from {VIDEO_LABEL} of {START_TIME}s to {END_TIME}s. The total duration of the video is {DURATION}s.
+
+    Here is the additional information that may be helpful for answering the question. It is extracted from the given {VIDEO_LABEL} (Current Video Information) and other videos (Other Videos Information) by Evidence Extraction Agents.
+    Current Video Information: "{CURRENT_VIDEO_DESC}"
+    Other Videos Information: "{OTHER_VIDEOS_DESC}"
+
+    You need to perform TWO tasks simultaneously:
+    1. Evaluate the score of each given frames from {VIDEO_LABEL} of {START_TIME}s to {END_TIME}s.
+    2. Decide the next sampling action to explore the {VIDEO_LABEL} for missing clues (only within {START_TIME}s to {END_TIME}s).
+
+    **Note: Each frame has a specific timestamp (in seconds) marked in the top-left corner.**
+
+    Here are the two tasks in detail:
+
+    /* Task 1: Frame Scoring */
+    - Assign a score (0.00-1.00) to each given frame based on its relevance to Current Video Information. Like [0.50, 0.50, 0.50, 0.50, 0.50, 0.50, 0.50, 0.50]
+    - 1.00: The frame contains critical, direct visual evidence that is useful for the question or relevant to Current Video Information.
+    - 0.50: The frame provides useful or relevant context but is not decisive.
+    - 0.00: The frame is irrelevant, blurry, or redundant.
+
+    /* Task 2: Action Decision */
+    Choose one option (1-6) based on given frame. 
+    **Crucial: For Options 1-4, you must specify the target time(s) range [start, end] you want to explore. Like [1.23, 4.56]**
+
+    1. Maybe [start, end] is useful, but other part can be also useful: Explore the middle part of the video.
+    2. I think [start, end] is useful and need to further explore: Explore the middle part of the video.
+    3. do not choose this option
+    4. do not choose this option
+    5. I want to further observe the whole {VIDEO_LABEL} of {START_TIME}s to {END_TIME}s
+    6. Terminate explore {VIDEO_LABEL} if we have sufficient information from {VIDEO_LABEL} to answer the question or {VIDEO_LABEL} appears irrelevant or useless to answer the question.
+
+    /* Output Format */
+    Scores: [<space-separated list of scores for each given frame>]
+    Decision: Option <number> [Range: <start>, <end>]
+
+    **Note: Range is only needed for Option 1 and 2. Range should be within {START_TIME}s to {END_TIME}s.**
+
+  desc_combined_action: |
+    /no_think
+    /* Task Description */
+    You are an Evidence Extraction Agent for the video question and answer task.
+    Here is a single-choice question about multiple videos.
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    You can only watch one video at a time. The given video is {VIDEO_LABEL}.
+
+    Here is the additional information that may be helpful for answering the question. It is extracted from the given video (Previous Evidence) and other videos (Other Videos Information) by other Evidence Extraction Agents.
+    Previous Evidence: "{DESC_OLD}"
+    Other Videos Information: "{OTHER_DESCS_TEXT}"
+
+
+    You need to perform two tasks simultaneously:
+    1. Extract New Evidence which is helpful for answering the given question from the given video "{VIDEO_LABEL}". Refering to "Previous Evidence" and "Other Videos Information", and do not repeat details already present in them.
+    2. Evaluate the confidence score of the Evidence of current video "{VIDEO_LABEL}" (only Previous Evidence and New Evidence) and decide termination.
+
+
+    Here are the two tasks in detail:
+
+    /* Task 1: Evidence Extraction */
+    - Focus on finding evidence, analysis for "{VIDEO_LABEL}" rather than general description. 
+    - Keep your New Evidence in less than 20 words.
+    - Do not repeat details already present in "Previous Evidence".
+
+    /* Task 2: Evaluation and Termination */
+    - Score (0.00-1.00): If you are sure that the evidence is sufficient, useful or it helps to exclude the given video for answering the question or some options (For example, the evidence "there is no...", "the video does not help..." represent that you are sure that this video is useless to answer the question). If the score is 0.00, it means that we have to further explore this video for more details.
+    - The question is about multiple videos, so the single evidence of current video is usually not enough to answer the question. If it helps to provide the part of the evidence, it is considered as useful. Score can be 1.00 even if you need to explore other videos for more details. Score can be 1.00 if you are sure that the video is not relevant to the question.
+    - Termination Check 1 (Current Video): Should we stop exploring this video? Answer True if we have sufficient evidence from it, or it appears irrelevant/low-value relative to the question! (True/False)
+    - Termination Check 2 (Global Task): Synthesizing the evidence from all videos (Previous Evidence, New Evidence and Other Videos Information), do we have enough information to answer the question conclusively? (True/False)
+
+    /* Output Format */
+    New Evidence: <clues extracted from the given {VIDEO_LABEL}>
+    ---
+    Score: <score>
+    Video Terminated: <True/False>
+    Global Terminated: <True/False>
