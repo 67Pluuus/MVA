@@ -165,8 +165,10 @@ class AgentRunner:
         
         global_terminated = False
 
-        num_frames = params.get('num_frames_iter', 8) if not params.get('skip_iteration', False) else params.get('num_frames_noiter', 16)
-        
+        skip_iteration = params.get('skip_iteration', False)
+
+        num_frames = params.get('num_frames_iter', 8) if not skip_iteration else params.get('num_frames_noiter', 16)
+
         # Phase 1: Initialization
         for idx, v_path in valid_videos:
             if self.config['parameters'].get('number_type') == "123":
@@ -205,6 +207,9 @@ class AgentRunner:
             if len(TextBank['videos'][v_name]['frame_bank']) > bank_limit:
                 TextBank['videos'][v_name]['frame_bank'] = TextBank['videos'][v_name]['frame_bank'][:bank_limit]
             
+            if skip_iteration:
+                continue
+
             # Use DescAgent to generate initial description and score
             v_label_str = v_name
             # For initialization, later videos can see descriptions of already initialized videos
@@ -277,14 +282,10 @@ class AgentRunner:
 
         # Phase 2: Main Iteration Loop
         max_iterations = self.config['parameters'].get('agent', {}).get('global_max_iterations', 10)
-        skip_iteration = self.config['parameters'].get('skip_iteration', False)
-
-        if skip_iteration or global_terminated:
-            global_terminated = True
 
         iteration_count = 0
         
-        while not global_terminated and iteration_count < max_iterations:
+        while not skip_iteration and not global_terminated and iteration_count < max_iterations:
             agent_cfg = self.config['parameters'].get('agent', {})
             min_accel = agent_cfg.get('min_acceleration_threshold', 0.2)
             max_score = agent_cfg.get('max_score_threshold', 0.8)
