@@ -597,7 +597,8 @@ class AgentRunner:
                 prompt_template=current_prompt_template,
                 device_id=self.device_id,
                 model_path=self.config['models']['main_model_path'],
-                print_data=self.config['parameters'].get('print_output', False)
+                print_data=self.config['parameters'].get('print_output', False),
+                skip_iteration=skip_iteration
             )
 
             if self.config['parameters'].get('print_output', False):

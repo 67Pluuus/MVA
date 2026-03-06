@@ -97,7 +97,7 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
     return final_output
 
 
-def answer(video_frames, question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False):
+def answer(video_frames, question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False, skip_iteration=False):
     """
     Generate an answer based on video frames and a question.
     
@@ -110,6 +110,7 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
         device_id: GPU ID.
         model_path: Model path.
         print_data: Whether to print the input data for debugging.
+        skip_iteration: Whether to skip the iteration step.
     """
     # User provided template. Try to format it if it has placeholders.
     # Use safe formatting to avoid errors if keys are missing in template but present in args, or vice-versa
@@ -130,22 +131,24 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
 
     if print_data:
         print("=== Initial frames in frame bank ===")
-    filtered_frames = []
-    for item in video_frames:
-        if isinstance(item, (tuple, list)) and len(item) >= 2:
-            path = item[0]
-            score = item[1]
-        else:
-            path = item
-            score = 1.0 # Default keep for non-scored items (compatibility)
-            
-        if print_data:
-            print(f"Path: {path}, Score: {score}")
-            
-        if score >= 0.5:
-            filtered_frames.append((path, score))
-    
-    video_frames = filtered_frames
+        
+    if not skip_iteration:
+        filtered_frames = []
+        for item in video_frames:
+            if isinstance(item, (tuple, list)) and len(item) >= 2:
+                path = item[0]
+                score = item[1]
+            else:
+                path = item
+                score = 1.0 # Default keep for non-scored items (compatibility)
+                
+            if print_data:
+                print(f"Path: {path}, Score: {score}")
+                
+            if score >= 0.5:
+                filtered_frames.append((path, score))
+        
+        video_frames = filtered_frames
 
     if print_data:
         print("=== Answering ===")
