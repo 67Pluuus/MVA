@@ -17,7 +17,7 @@ class ToolAgent:
         from utils import Qwen_VL
         return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
 
-    def decide_action(self, question: str, frame_bank: List[Tuple[str, float, float]], current_frames_info: List[dict], video_duration: float, video_label: str = "ONE of the videos", current_video_desc: str = "", other_videos_desc: Dict[str, str] = {}, options_text: str = "") -> Tuple[List[float], int, float, float]:
+    def decide_action(self, question: str, frame_bank: List[Tuple[str, float, float]], current_frames_info: List[dict], video_duration: float, video_label: str = "ONE of the videos", current_video_desc: str = "", other_videos_desc: Dict[str, str] = {}, options_text: str = "", question_analysis: str = "") -> Tuple[List[float], int, float, float]:
         """
         Score newly sampled frames (current_frames_info) AND decide the next sampling action in one go.
         
@@ -68,12 +68,14 @@ class ToolAgent:
                                 .replace("{IS_GLOBAL}", str(is_global)) \
                                 .replace("{CURRENT_VIDEO_DESC}", current_video_desc) \
                                 .replace("{OTHER_VIDEOS_DESC}", other_videos_str) \
-                                .replace("{OPTIONS}", options_text)
+                                .replace("{OPTIONS}", options_text) \
+                                .replace("{QUESTION_ANALYSIS}", question_analysis)
         content = []
         if self.config['parameters'].get('print_output', False):
             print("============Tool Agent Prompt===========")
             print(f"Question: {question}")
             print(f"Options: {options_text}")
+            print(f"Question Analysis: {question_analysis}")
             print(f"Video Label: {video_label}")
             print(f"Start Time: {start_time:.2f}")
             print(f"End Time: {end_time:.2f}")
@@ -155,7 +157,7 @@ class DescAgent:
         from utils import Qwen_VL
         return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
 
-    def describe_and_evaluate(self, question: str, frames: List[str], desc_old: str, other_descs: Dict[str, str], video_duration: float, video_label: str = "ONE of the videos", options_text: str = "") -> Tuple[str, float, bool, bool]:
+    def describe_and_evaluate(self, question: str, frames: List[str], desc_old: str, other_descs: Dict[str, str], video_duration: float, video_label: str = "ONE of the videos", options_text: str = "", question_analysis: str = "") -> Tuple[str, float, bool, bool]:
         """
         Generate a description from frames AND evaluate status (score, termination) in one go.
         frames: New frames to describe.
@@ -174,13 +176,15 @@ class DescAgent:
                                 .replace("{DURATION}", f"{video_duration:.2f}") \
                                 .replace("{DESC_OLD}", desc_old) \
                                 .replace("{OTHER_DESCS_TEXT}", other_descs_text) \
-                                .replace("{OPTIONS}", options_text)
+                                .replace("{OPTIONS}", options_text) \
+                                .replace("{QUESTION_ANALYSIS}", question_analysis)
 
         content = []
         if self.config['parameters'].get('print_output', False):
             print("============Desc Agent Prompt===========")
             print(f"Question: {question}")
             print(f"Options: {options_text}")
+            print(f"Question Analysis: {question_analysis}")
             print(f"Video label: {video_label}")
             print(f"Old Description: {desc_old}")
             print(f"Other Videos Description: {other_descs_text}")

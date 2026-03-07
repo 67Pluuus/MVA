@@ -200,3 +200,52 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
         print("======Model output========\n", output_text)
 
     return output_text
+
+def question_analyse(question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False):
+    """
+    Analyze the question and options to determine the strategy.
+    
+    Args:
+        question: The question string.
+        options: The options string.
+        prompt_template: Template for the analysis prompt.
+        device_id: GPU ID.
+        model_path: Model path.
+        print_data: Whether to print debug info.
+    """
+    try:
+        if prompt_template and ("{QUESTION}" in prompt_template or "{OPTIONS}" in prompt_template):
+            prompt_text = prompt_template.replace("{QUESTION}", question).replace("{OPTIONS}", options)
+        else:
+            prompt_text = f"{prompt_template}\n\nQuestion: {question}\nOptions:\n{options}" if prompt_template else f"Question: {question}\nOptions:\n{options}"
+    except Exception as e:
+        print(f"Warning: Failed to format analysis prompt: {e}")
+        prompt_text = f"Question: {question}\nOptions:\n{options}"
+
+    if print_data:
+        print("=== Question Analysis ===")
+        print("Prompt:", prompt_text)
+        print("=======================")
+
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": prompt_text
+                }
+            ]
+        }
+    ]
+    
+    try:
+        output_text = Qwen_VL(messages, device_id=device_id, model_path=model_path, max_tokens=512)
+    except Exception as e:
+        print(f"Error in question analysis: {e}")
+        output_text = "Analysis failed."
+
+    if print_data:
+        print("======Analysis Output========\n", output_text)
+
+    return output_text

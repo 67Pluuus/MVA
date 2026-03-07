@@ -10,7 +10,7 @@ import math
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
-from utils import init, answer
+from utils import init, answer, question_analyse
 from agent import ToolAgent, DescAgent
 import cv2
 from PIL import Image
@@ -99,6 +99,7 @@ class AgentRunner:
         paths = self.config['paths']
         params = self.config['parameters']  
         prompts = self.config['prompts']
+        skip_iteration = params.get('skip_iteration', False)
         
         # Extract basic info
         key = sample.get('key', 'unknown')
@@ -149,6 +150,29 @@ class AgentRunner:
         tool_agent = ToolAgent(self.model, self.processor, self.config, self.device_id)
         desc_agent = DescAgent(self.model, self.processor, self.config, self.device_id)
         
+        if not skip_iteration:
+            # --- Question Analysis Agent (Pre-Initialization) ---
+            if self.config['parameters'].get('print_output', False):
+                print("--- Question Analysis Agent Start ---")
+                
+            analysis_template = prompts.get('question_analysis', "")
+            
+            # Use question_analyse()
+            analysis_result = question_analyse(
+                question=question,
+                options=options_text,
+                prompt_template=analysis_template,
+                device_id=self.device_id,
+                model_path=self.config['models']['main_model_path'],
+                print_data=self.config['parameters'].get('print_output', False)
+            ).strip()
+            
+            TextBank['question_analysis'] = analysis_result
+            process_logs['question_analysis'] = analysis_result
+            
+            if self.config['parameters'].get('print_output', False):
+                print(f"Analysis Strategy: {analysis_result}\n---------------------------------------")
+
         # Ensure q_id is unique across distributed nodes if key is unknown or shared
         if key != 'unknown':
             q_id = str(key)
@@ -165,7 +189,7 @@ class AgentRunner:
         
         global_terminated = False
 
-        skip_iteration = params.get('skip_iteration', False)
+
 
         num_frames = params.get('num_frames_iter', 8) if not skip_iteration else params.get('num_frames_noiter', 16)
 
@@ -232,7 +256,8 @@ class AgentRunner:
                 other_descs=other_descs, 
                 video_label=v_label_str,
                 video_duration=v_duration,
-                options_text=options_text
+                options_text=options_text,
+                question_analysis=TextBank.get('question_analysis', "")
             )
             if self.config['parameters'].get('print_output', False): 
                 ed = time.time()
@@ -345,7 +370,8 @@ class AgentRunner:
                 video_label=v_label,
                 current_video_desc=current_video_desc,
                 other_videos_desc=other_videos_desc,
-                options_text=options_text
+                options_text=options_text,
+                question_analysis=TextBank.get('question_analysis', "")
             )
             ed = time.time()
             
@@ -434,7 +460,8 @@ class AgentRunner:
                 other_descs=other_descs, 
                 video_label=v_label,
                 video_duration=duration,
-                options_text=options_text
+                options_text=options_text,
+                question_analysis=TextBank.get('question_analysis', "")
             )
 
             if self.config['parameters'].get('print_output', False): 
