@@ -133,20 +133,22 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
         print("=== Initial frames in frame bank ===")
         
     if not skip_iteration:
-        filtered_frames = []
-        for item in video_frames:
-            if isinstance(item, (tuple, list)) and len(item) >= 2:
-                path = item[0]
-                score = item[1]
-            else:
-                path = item
-                score = 1.0 # Default keep for non-scored items (compatibility)
-                
-            if print_data:
-                print(f"Path: {path}, Score: {score}")
-                
-            if score >= 0.5:
-                filtered_frames.append((path, score))
+        filtered_frames = {}
+        for k, v in video_frames.items():
+            filtered_frames[k] = []
+            for item in v:
+                if isinstance(item, (tuple, list)) and len(item) >= 2:
+                    path = item[0]
+                    score = item[1]
+                else:
+                    path = item
+                    score = 1.0 # Default keep for non-scored items (compatibility)
+                    
+                if print_data:
+                    print(f"Path: {path}, Score: {score}")
+                    
+                if score >= 0.5:
+                    filtered_frames[k].append((path, score))
         
         video_frames = filtered_frames
 
@@ -155,8 +157,10 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
         print("Question:", question)
         print("Options:", options)
         print(f"Number of filtered video frames: {len(video_frames)}")
-        for i, frame in enumerate(video_frames):
-            print(f"Frame {i}: Path: {frame[0]}, Score: {frame[1]}")
+        for k, v in video_frames.items():
+            print(f"{k}: ")
+            for frame in v:
+                print(f"  Path: {frame[0]}, Score: {frame[1]}")
         print("==================")
 
     content = [
@@ -166,11 +170,16 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
         }
     ]
     
-    for frame in video_frames:
+    for k, v in video_frames.items():
         content.append({
-            "type": "image",
-            "image": frame[0] if isinstance(frame, tuple) else frame
+            "type": "text",
+            "text": f"[{k}]"
         })
+        for frame in v:
+            content.append({
+                "type": "image",
+                "image": frame[0] if isinstance(frame, tuple) else frame
+            })
         
     messages = [
         {
@@ -178,6 +187,8 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
             "content": content
         }
     ]
+
+    # print(f"messages: {messages}")
     
     try:
         output_text = Qwen_VL(messages, device_id=device_id, model_path=model_path, max_tokens=512)

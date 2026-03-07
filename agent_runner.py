@@ -502,7 +502,8 @@ class AgentRunner:
             iteration_count += 1
             
         # Phase 3: Result Generation
-        final_frame_paths = []
+        final_frame_paths = {}
+        # final_frame_paths = {}
         final_descriptions_list = []
         for v_name, v_data in TextBank['videos'].items():
             safe_v_name = v_name.replace(" ", "_")
@@ -519,7 +520,7 @@ class AgentRunner:
                 safe_v_name, 
                 video_duration=v_duration
             )
-            final_frame_paths.extend(watermarked_frames)
+            final_frame_paths[v_name] = watermarked_frames
             
             # v_label is already the key (v_name), or can be re-derived if needed for consistency check
             v_label = v_name
@@ -538,7 +539,7 @@ class AgentRunner:
         use_text = params.get('use_text_answer', True)
 
         if not use_visual:
-            final_frame_paths = []
+            final_frame_paths = {}
         if not use_text:
             final_descriptions_str = ""
 

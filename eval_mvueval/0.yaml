@@ -27,7 +27,7 @@ parameters:
   use_text_answer: true # 是否提供文本描述 (对应 answer_text_only 模版)
   # 若两者均为 true, 则使用 answer_combined 模版
   print_output: true
-  skip_iteration: false # 是否跳过初始化后的迭代过程 (仅用于测试或者快速预览)
+  skip_iteration: false # 直接回答
 
   # Agent 参数
   agent:
