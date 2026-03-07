@@ -107,6 +107,21 @@ prompts:
     **Output Format:**
     Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
 
+  question_analysis: |
+    /no_think
+    /* Task Description */
+    You are a Strategy Analyst for a video question answering task.
+    Question: "{QUESTION}"
+    Options: "{OPTIONS}"
+
+    Analyze the question and options to determine the best strategy for finding the answer from the videos.
+
+    1. What are the key discriminative visual features or events to look for?
+    2. What strategy should be used to differentiate the options?
+
+    **Output Format:**
+    Provide a concise strategy (1-2 sentences) focusing on the critical visual information and analysis approach. Do not answer the question itself.
+
   tool_combined_action: |
     /no_think
     /* Task Description */
@@ -114,6 +129,8 @@ prompts:
     Here is a single-choice question about multiple videos.
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
+
+    Question Strategy: "{QUESTION_ANALYSIS}"
 
     You can only watch one video at a time. You will receive {NUM_FRAMES} frames uniformly sampled from {VIDEO_LABEL} of {START_TIME}s to {END_TIME}s. The total duration of the video is {DURATION}s.
 
@@ -160,6 +177,8 @@ prompts:
     Here is a single-choice question about multiple videos.
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
+
+    Question Strategy: "{QUESTION_ANALYSIS}"
 
     You can only watch one video at a time. The given video is {VIDEO_LABEL}.
 
