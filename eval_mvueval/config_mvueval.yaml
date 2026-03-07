@@ -27,11 +27,11 @@ parameters:
   use_text_answer: true # 是否提供文本描述 (对应 answer_text_only 模版)
   # 若两者均为 true, 则使用 answer_combined 模版
   print_output: false
+  skip_iteration: false # 直接回答
 
   # Agent 参数
   agent:
     global_max_iterations: 20 # 通过Tool Agent获取信息的全局最大迭代次数
-    skip_iteration: false # 直接回答
     frame_bank_size: 16 # 每个视频最多取这么多帧
     initial_acceleration: 1.0
     min_acceleration_threshold: 0.2 # 单视频最低加速度阈值，低于则终止该视频
@@ -122,7 +122,7 @@ prompts:
     2. Differentiation strategy: How can we distinguish between the provided options based on the video content?
 
     /* Output Format */
-    Provide a concise strategy (1-2 sentences) focusing on the critical visual information and analysis approach to guide the exploration and evidence extraction agents. Do not answer the question itself.
+    Provide a concise strategy (1-2 sentences) summarizing the critical visual features and differentiation approach. Do not use lists or bullet points. Do not answer the question itself.
 
   tool_combined_action: |
     /no_think

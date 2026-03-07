@@ -110,17 +110,19 @@ prompts:
   question_analysis: |
     /no_think
     /* Task Description */
-    You are a Strategy Analyst for a video question answering task.
+    You are a Strategy Analyst for the video question and answer task.
+    Here is a single-choice question about multiple videos.
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
-    Analyze the question and options to determine the best strategy for finding the answer from the videos.
+    Your task is to analyze the question and options to determine the best strategy for finding the answer from the videos.
 
-    1. What are the key discriminative visual features or events to look for?
-    2. What strategy should be used to differentiate the options?
+    Analyze the following aspects:
+    1. Key discriminative visual features or events: What specific visual clues should the agents look for?
+    2. Differentiation strategy: How can we distinguish between the provided options based on the video content?
 
-    **Output Format:**
-    Provide a concise strategy (1-2 sentences) focusing on the critical visual information and analysis approach. Do not answer the question itself.
+    /* Output Format */
+    Provide a concise strategy (1-2 sentences) summarizing the critical visual features and differentiation approach. Do not use lists or bullet points. Do not answer the question itself.
 
   tool_combined_action: |
     /no_think
@@ -130,6 +132,7 @@ prompts:
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
+    Here is the Question Strategy provided by the Strategy Analyst. It indicates the key visual features to look for, which helps you assign accurate relevance scores to frames and select the best sampling action to find missing discriminative clues:
     Question Strategy: "{QUESTION_ANALYSIS}"
 
     You can only watch one video at a time. You will receive {NUM_FRAMES} frames uniformly sampled from {VIDEO_LABEL} of {START_TIME}s to {END_TIME}s. The total duration of the video is {DURATION}s.
@@ -178,6 +181,7 @@ prompts:
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
+    Here is the Question Strategy provided by the Strategy Analyst. It highlights what information is critical for answering the question, which helps you extract highly relevant evidence and evaluate if the video contains decisive information for termination:
     Question Strategy: "{QUESTION_ANALYSIS}"
 
     You can only watch one video at a time. The given video is {VIDEO_LABEL}.

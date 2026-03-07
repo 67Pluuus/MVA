@@ -128,6 +128,11 @@ class AgentRunner:
         # Initialize timing and tracking
         timings = {}
         total_start = time.time()
+
+        process_logs = {
+            'initialization': [],
+            'iterations': []
+        }
         
         # --- Validate Videos ---
         valid_videos = []
@@ -182,10 +187,7 @@ class AgentRunner:
         
         benchmark_name = paths.get('Benchmark_name', 'Benchmark')
         
-        process_logs = {
-            'initialization': [],
-            'iterations': []
-        }
+        
         
         global_terminated = False
 

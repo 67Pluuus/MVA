@@ -122,7 +122,7 @@ def main():
     
     node_keys_all = all_keys[start_node:end_node]
     print(f"Total tasks: {tasks_total}")
-    print(f"Tasks assigned to this node (Rank {args.node_rank}): {len(node_keys_all)} (Indices {start_node}-{end_node})")
+    print(f"Tasks assigned to this node (Rank {args.node_rank}): {len(node_keys_all)} (Indices {start_node}-{end_node - 1})")
 
     if not node_keys_all:
         print("No tasks assigned to this node.")
