@@ -230,6 +230,12 @@ class AgentRunner:
             
             TextBank['videos'][v_name]['frame_bank'].sort(key=lambda x: x[1], reverse=True)
             bank_limit = self.config['parameters']['agent'].get('frame_bank_size', 16)
+            
+            # If skipping iteration, we should respect num_frames_noiter if it's larger than bank_limit
+            # to avoid truncating uniformly sampled frames (which all have same 0.5 score initially)
+            if skip_iteration:
+                bank_limit = max(bank_limit, num_frames)
+
             if len(TextBank['videos'][v_name]['frame_bank']) > bank_limit:
                 TextBank['videos'][v_name]['frame_bank'] = TextBank['videos'][v_name]['frame_bank'][:bank_limit]
             

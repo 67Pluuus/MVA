@@ -30,7 +30,7 @@ parameters:
   # Agent 参数
   agent:
     global_max_iterations: 20 # 通过Tool Agent获取信息的全局最大迭代次数
-    frame_bank_size: 16 # 每个视频最多取这么多帧
+    frame_bank_size: 32 # 每个视频最多取这么多帧
     initial_acceleration: 1.0
     min_acceleration_threshold: 0.2 # 单视频最低加速度阈值，低于则终止该视频
     max_score_threshold: 0.8 # 所有视频平均分数超过则整体终止
