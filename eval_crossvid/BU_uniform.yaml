@@ -56,8 +56,10 @@ prompts:
 
   answer_visual_only: |
     /no_think
-    Provide you with four videos and a multiple-choice question with 1-3 correct answer choices. Watch the videos carefully, and think about the question based on the information from the four videos. Only output the capital letters of ALL your choices, e.g., "BCD".  Question: {QUESTION}  
-    Options: {OPTIONS}
+    Provide you with four videos and a multiple-choice question with 1-3 correct answer choices. Watch the videos carefully, and think about the question based on the information from the four videos. Only output the capital letters of ALL your choices, e.g., "BCD".  Question: 
+    {QUESTION}  
+    Options: 
+    {OPTIONS}
     Your answer:
 
   answer_text_only: |
