@@ -5,7 +5,7 @@ import cv2
 import os
 from functools import lru_cache
 
-from transformers import Qwen3VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration, AutoProcessor
+from transformers import Qwen3VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration, AutoProcessor, set_seed
 from qwen_vl_utils import process_vision_info
 
 # 全局模型缓存，按GPU ID存储
@@ -20,6 +20,9 @@ def init(model_path: str="Qwen3-VL-2B-Instruct", device_id: int=None):
         model_path: 模型路径
         device_id: GPU设备ID (0-7)，如果为None则使用device_map="auto"
     """
+    # Set seed for reproducibility
+    set_seed(42)
+
     # 如果指定了device_id，使用缓存
     if device_id is not None:
         cache_key = f"{model_path}_{device_id}"
@@ -85,7 +88,8 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
     inputs = processor(text=text, images=images, videos=videos, video_metadata=video_metadatas, return_tensors="pt", do_resize=False, **video_kwargs)
     inputs = inputs.to(model.device)
 
-    generated_ids = model.generate(**inputs, max_new_tokens=max_tokens)
+    # Use do_sample=False to minimize randomness (greedy decoding)
+    generated_ids = model.generate(**inputs, max_new_tokens=max_tokens, do_sample=False)
     generated_ids_trimmed = [
         out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
     ]

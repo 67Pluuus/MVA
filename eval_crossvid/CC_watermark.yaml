@@ -2,7 +2,7 @@
 paths:
   Benchmark_name: "Benchmark/CrossVid"
   video_base_dir: "Benchmark/CrossVid/videos"
-  json_file: "Benchmark/CrossVid/QA/NC_1.json"
+  json_file: "Benchmark/CrossVid/QA/CC_1.json"
 
 # 模型配置
 models:
@@ -25,7 +25,7 @@ parameters:
   use_text_answer: true # 是否提供文本描述 (对应 answer_text_only 模版)
   # 若两者均为 true, 则使用 answer_combined 模版
   print_output: false
-  skip_iteration: false # 直接回答
+  skip_iteration: true
 
   # Agent 参数
   agent:

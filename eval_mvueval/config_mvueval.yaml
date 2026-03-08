@@ -1,9 +1,7 @@
 # 路径配置
 paths:
-  # MVU Benchmark 基础路径
   Benchmark_name: "MVU_Eval"
   video_base_dir: "Benchmark/MVU-Eval-Data"
-  # 数据集 JSON 路径
   json_file: "Benchmark/MVU-Eval-Data/MVU_Eval_QAs.json"
 
 # 模型配置

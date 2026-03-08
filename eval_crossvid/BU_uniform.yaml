@@ -2,7 +2,7 @@
 paths:
   Benchmark_name: "Benchmark/CrossVid"
   video_base_dir: "Benchmark/CrossVid/videos"
-  json_file: "Benchmark/CrossVid/QA/NC_1.json"
+  json_file: "Benchmark/CrossVid/QA/BU_1.json"
 
 # 模型配置
 models:
@@ -25,7 +25,7 @@ parameters:
   use_text_answer: true # 是否提供文本描述 (对应 answer_text_only 模版)
   # 若两者均为 true, 则使用 answer_combined 模版
   print_output: false
-  skip_iteration: false # 直接回答
+  skip_iteration: true
 
   # Agent 参数
   agent:
@@ -35,7 +35,7 @@ parameters:
     min_acceleration_threshold: 0.2 # 单视频最低加速度阈值，低于则终止该视频
     max_score_threshold: 0.8 # 所有视频平均分数超过则整体终止
 
-  type_watermark: "video_tag temporal_tag trans_frame" # 水印类型
+  type_watermark: "none" # 水印类型
   # 可选模式 (可叠加, 如"video_tag+temporal_tag"):
   # "video_tag": 视频标签 (左上角)
   # "temporal_tag": 时间戳 (左上角)
@@ -51,7 +51,7 @@ prompts:
     /no_think
     /* Task Description */
     You are an Answer Generation model for the video question and answer task.
-    Here is a single-choice question about multiple videos.
+    Here is a multiple-choice question about multiple videos.(one or more options may be correct)
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
@@ -71,7 +71,7 @@ prompts:
     /no_think
     /* Task Description */
     You are an Answer Generation model for the video question and answer task.
-    Here is a single-choice question about multiple videos.
+    Here is a multiple-choice question about multiple videos.(one or more options may be correct)
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
@@ -89,7 +89,7 @@ prompts:
     /no_think
     /* Task Description */
     You are an Answer Generation model for the video question and answer task.
-    Here is a single-choice question about multiple videos.
+    Here is a multiple-choice question about multiple videos.(one or more options may be correct)
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
