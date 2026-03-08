@@ -51,23 +51,9 @@ parameters:
 prompts:
   answer_combined: |
     /no_think
-    /* Task Description */
-    You are an Answer Generation model for the video question and answer task.
-    Here is a single-choice question about multiple videos.
-    Question: "{QUESTION}"
-    Options: "{OPTIONS}"
-
-    You are provided with multiple keyframes extracted from different videos. Each frame has a watermark in the top-left corner indicating which video it belongs to (e.g., "Video 1", "Video 2") and its timestamp.
-    You are also provided with textual descriptions for each video:
-    {DESCRIPTIONS}
-
-    Your task is to analyze all the provided keyframes AND the video descriptions to answer the question. Pay attention to:
-    1. The specific visual details in keyframes relevant to answering the question.
-    2. The events and details described in each video summary.
-    3. The differences and similarities between videos.
-
-    **Output Format:**
-    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+    {QUESTION}
+    {OPTIONS}
+    Please select the correct answer from the options. Answer with the option’s letter directly.
 
   answer_visual_only: |
     /no_think

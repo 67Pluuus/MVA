@@ -100,6 +100,7 @@ class AgentRunner:
         params = self.config['parameters']  
         prompts = self.config['prompts']
         skip_iteration = params.get('skip_iteration', False)
+        question_analysis = params.get('question_analysis', False)
         
         # Extract basic info
         key = sample.get('key', 'unknown')
@@ -155,7 +156,7 @@ class AgentRunner:
         tool_agent = ToolAgent(self.model, self.processor, self.config, self.device_id)
         desc_agent = DescAgent(self.model, self.processor, self.config, self.device_id)
         
-        if not skip_iteration:
+        if not skip_iteration and question_analysis:
             # --- Question Analysis Agent (Pre-Initialization) ---
             if self.config['parameters'].get('print_output', False):
                 print("--- Question Analysis Agent Start ---")
@@ -177,6 +178,13 @@ class AgentRunner:
             
             if self.config['parameters'].get('print_output', False):
                 print(f"Analysis Strategy: {analysis_result}\n---------------------------------------")
+        
+        if not question_analysis:
+            self.config['prompts']['tool_combined_action'] = self.config['prompts']['tool_combined_action'].replace("Here is the auxiliary Question Strategy. It indicates the key visual features to look for, which helps you assign accurate relevance scores to frames and select the best sampling action to find missing discriminative clues:", "").replace("Question Strategy: \"\{QUESTION_ANALYSIS\}\"", "")
+            self.config['prompts']['tool_combined_action'] = self.config['prompts']['tool_combined_action'].replace("Here is the auxiliary Question Strategy. It highlights what information is critical for answering the question, which helps you extract highly relevant evidence and evaluate if the video contains decisive information for termination:", "").replace("Question Strategy: \"\{QUESTION_ANALYSIS\}\"", "")
+
+        print(self.config['prompts']['tool_combined_action'])
+        print(self.config['prompts']['desc_combined_action'])
 
         # Ensure q_id is unique across distributed nodes if key is unknown or shared
         if key != 'unknown':
