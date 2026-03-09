@@ -60,7 +60,6 @@ prompts:
     {QUESTION}  
     Options: 
     {OPTIONS}
-    Your answer:
 
   answer_text_only: |
     /no_think
@@ -101,6 +100,14 @@ prompts:
     /* Output Format */
     Provide a concise strategy summarizing the critical visual features and differentiation approach. Do not use lists or bullet points. Do not answer the question itself.
 
+  tool_analylsis: |
+    Here is the auxiliary Question Strategy. It indicates the key visual features to look for, which helps you assign accurate relevance scores to frames and select the best sampling action to find missing discriminative clues:
+    Question Strategy: "{QUESTION_ANALYSIS}"
+
+  desc_analysis: |
+    Here is the auxiliary Question Strategy. It highlights what information is critical for answering the question, which helps you extract highly relevant evidence and evaluate if the video contains decisive information for termination:
+    Question Strategy: "{QUESTION_ANALYSIS}"
+
   tool_combined_action: |
     /no_think
     /* Task Description */
@@ -109,8 +116,7 @@ prompts:
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
-    Here is the auxiliary Question Strategy. It indicates the key visual features to look for, which helps you assign accurate relevance scores to frames and select the best sampling action to find missing discriminative clues:
-    Question Strategy: "{QUESTION_ANALYSIS}"
+    {TOOL_ANALYSIS}
 
     You can only watch one video at a time. You will receive {NUM_FRAMES} frames uniformly sampled from {VIDEO_LABEL} of {START_TIME}s to {END_TIME}s. The total duration of the video is {DURATION}s.
 
@@ -162,10 +168,7 @@ prompts:
 
     You can only watch one video at a time. The given video is {VIDEO_LABEL}.
 
-    Here is the additional information that may be helpful for answering the question. It is extracted from the given video (Previous Evidence) and other videos (Other Videos Information) by other Evidence Extraction Agents.
-    Previous Evidence: "{DESC_OLD}"
-    Other Videos Information: "{OTHER_DESCS_TEXT}"
-
+    {DESC_ANALYSIS}
 
     You need to perform two tasks simultaneously:
     1. Extract New Evidence which is helpful for answering the given question from the given video "{VIDEO_LABEL}". Refering to "Previous Evidence" and "Other Videos Information", and do not repeat details already present in them.

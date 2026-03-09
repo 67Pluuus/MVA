@@ -180,8 +180,12 @@ class AgentRunner:
                 print(f"Analysis Strategy: {analysis_result}\n---------------------------------------")
         
         if not question_analysis:
-            self.config['prompts']['tool_combined_action'] = self.config['prompts']['tool_combined_action'].replace("Here is the auxiliary Question Strategy. It indicates the key visual features to look for, which helps you assign accurate relevance scores to frames and select the best sampling action to find missing discriminative clues:", "").replace("Question Strategy: \"{QUESTION_ANALYSIS}\"", "")
-            self.config['prompts']['desc_combined_action'] = self.config['prompts']['desc_combined_action'].replace("Here is the auxiliary Question Strategy. It highlights what information is critical for answering the question, which helps you extract highly relevant evidence and evaluate if the video contains decisive information for termination:", "").replace("Question Strategy: \"{QUESTION_ANALYSIS}\"", "")
+            self.config['prompts']['tool_combined_action'] = self.config['prompts']['tool_combined_action'].replace("{TOOL_ANALYSIS}", "")
+            self.config['prompts']['desc_combined_action'] = self.config['prompts']['desc_combined_action'].replace("{DESC_ANALYSIS}", "")
+
+        else:
+            self.config['prompts']['tool_combined_action'] = self.config['prompts']['tool_combined_action'].replace("{TOOL_ANALYSIS}", self.config['prompts'].get('tool_analysis', ""))
+            self.config['prompts']['desc_combined_action'] = self.config['prompts']['desc_combined_action'].replace("{DESC_ANALYSIS}", self.config['prompts'].get('desc_analysis', ""))
 
         # print(self.config['prompts']['tool_combined_action'])
         # print(self.config['prompts']['desc_combined_action'])
