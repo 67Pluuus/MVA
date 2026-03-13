@@ -203,8 +203,6 @@ class AgentRunner:
         
         global_terminated = False
 
-
-
         num_frames = params.get('num_frames_iter', 8) if not skip_iteration else params.get('num_frames_noiter', 16)
 
         # Phase 1: Initialization
