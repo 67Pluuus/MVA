@@ -1,38 +1,40 @@
+# 路径配置
 paths:
-  # Benchmark 基础路径
-  Benchmark_name: "ViDiC-1K"
-  video_base_dir: "Benchmark/ViDiC-1K/test"
+  # MVU Benchmark 基础路径
+  Benchmark_name: "MVU_Eval"
+  video_base_dir: "Benchmark/MVU-Eval-Data"
   # 数据集 JSON 路径
-  json_file: "Benchmark/ViDiC-1K/test/metadata.json"
+  # json_file: "Benchmark/MVU-Eval-Data/MVU_Eval_QAs.json"
+  json_file: "Benchmark/MVU-Eval-Data/_.json"
 
 # 模型配置
 models:
-  main_model_path: "Qwen/Qwen2.5-VL-7B-Instruct"
+  main_model_path: "models/Qwen2.5-VL-7B-Instruct"
   api_key: "7117a451621443b1b550a08acadad5e1.Mljp89b7Rwz7SeiA"
 
 parameters:
-  size: 360
+  size: 720
   num_frames_iter: 8
-  num_frames_noiter: 16
+  num_frames_noiter: 32
   num_gpus: 1
   # 任务数量, -1 表示所有
   num_tasks: -1
   sub_task: "all"
   save_key_frames: false
   save_video_frames: false
-  number_type: "ABC"
+  number_type: "123"
 
   use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
   use_text_answer: false # 是否提供文本描述 (对应 answer_text_only 模版)
   # 若两者均为 true, 则使用 answer_combined 模版
-  print_output: false
+  print_output: true
   skip_iteration: true # 直接回答
   question_analysis: false # 是否进行问题分析，生成 question_analysis 模版所需的提示词
 
   # Agent 参数
   agent:
     global_max_iterations: 20 # 通过Tool Agent获取信息的全局最大迭代次数
-    frame_bank_size: 16 # 每个视频最多取这么多帧
+    frame_bank_size: 32 # 每个视频最多取这么多帧
     initial_acceleration: 1.0
     min_acceleration_threshold: 0.2 # 单视频最低加速度阈值，低于则终止该视频
     max_score_threshold: 0.8 # 所有视频平均分数超过则整体终止
@@ -51,41 +53,15 @@ parameters:
 prompts:
   answer_combined: |
     /no_think
-    /* Task Description */
-    You are an Answer Generation model for the video question and answer task.
-    Here is a single-choice question about multiple videos.
-    Question: "{QUESTION}"
-    Options: "{OPTIONS}"
-
-    You are provided with multiple keyframes extracted from different videos. Each frame has a watermark in the top-left corner indicating which video it belongs to (e.g., "Video A", "Video B") and its timestamp.
-    You are also provided with textual descriptions for each video:
-    {DESCRIPTIONS}
-
-    Your task is to analyze all the provided keyframes AND the video descriptions to answer the question. Pay attention to:
-    1. The specific visual details in keyframes relevant to answering the question.
-    2. The events and details described in each video description.
-    3. The differences and similarities between videos.
-
-    **Output Format:**
-    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+    {QUESTION}
+    {OPTIONS}
+    Please select the correct answer from the options. Answer with the option’s letter directly.
 
   answer_visual_only: |
     /no_think
-    /* Task Description */
-    You are an Answer Generation model for the video question and answer task.
-    Here is a single-choice question about multiple videos.
-    Question: "{QUESTION}"
-    Options: "{OPTIONS}"
-
-    You are provided with multiple keyframes extracted from different videos. Each frame has a watermark in the top-left corner indicating which video it belongs to (e.g., "Video A", "Video B") and its timestamp.
-
-    Your task is to analyze all the provided keyframes to answer the question. Pay attention to:
-    1. The specific visual details in keyframes relevant to answering the question.
-    2. Which video each frame belongs to (indicated by the watermark).
-    3. The differences and similarities between frames from different videos.
-
-    **Output Format:**
-    Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
+    {QUESTION}
+    {OPTIONS}
+    Please select the correct answer from the options. Answer with the option’s letter directly.
 
   answer_text_only: |
     /no_think
@@ -100,39 +76,12 @@ prompts:
     {DESCRIPTIONS}
 
     Your task is to analyze the provided video descriptions to answer the question. Pay attention to:
-    1. The events and details described in each video description.
+    1. The events and details described in each video summary.
     2. The timestamps mentioned in the descriptions.
     3. The differences and similarities between videos based on their descriptions.
 
     **Output Format:**
     Output only your answer (e.g., "A", "B", "C", or "D"), without any additional explanation, reasoning, or text.
-
-  question_analysis: |
-    /no_think
-    /* Task Description */
-    You are a Strategy Analyst for the video question and answer task.
-    Here is a single-choice question about multiple videos.
-    Question: "{QUESTION}"
-    Options: "{OPTIONS}"
-
-    Your task is to analyze the question and options to determine the best strategy for finding the answer from the videos.
-
-    Analyze the following aspects:
-    1. Key discriminative visual features or events: What specific visual clues should the agents look for?
-    2. Differentiation strategy: How can we distinguish between the provided options based on the video content?
-
-    - Keep your strategy in less than 30 words.
-
-    /* Output Format */
-    Provide a concise strategy summarizing the critical visual features and differentiation approach. Do not use lists or bullet points. Do not answer the question itself.
-
-  tool_analylsis: |
-    Here is the auxiliary Question Strategy. It indicates the key visual features to look for, which helps you assign accurate relevance scores to frames and select the best sampling action to find missing discriminative clues:
-    Question Strategy: "{QUESTION_ANALYSIS}"
-
-  desc_analysis: |
-    Here is the auxiliary Question Strategy. It highlights what information is critical for answering the question, which helps you extract highly relevant evidence and evaluate if the video contains decisive information for termination:
-    Question Strategy: "{QUESTION_ANALYSIS}"
 
   tool_combined_action: |
     /no_think
@@ -141,8 +90,6 @@ prompts:
     Here is a single-choice question about multiple videos.
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
-
-    {TOOL_ANALYSIS}
 
     You can only watch one video at a time. You will receive {NUM_FRAMES} frames uniformly sampled from {VIDEO_LABEL} of {START_TIME}s to {END_TIME}s. The total duration of the video is {DURATION}s.
 
@@ -189,12 +136,12 @@ prompts:
     Question: "{QUESTION}"
     Options: "{OPTIONS}"
 
-    Here is the auxiliary Question Strategy. It highlights what information is critical for answering the question, which helps you extract highly relevant evidence and evaluate if the video contains decisive information for termination:
-    Question Strategy: "{QUESTION_ANALYSIS}"
-
     You can only watch one video at a time. The given video is {VIDEO_LABEL}.
 
-    {DESC_ANALYSIS}
+    Here is the additional information that may be helpful for answering the question. It is extracted from the given video (Previous Evidence) and other videos (Other Videos Information) by other Evidence Extraction Agents.
+    Previous Evidence: "{DESC_OLD}"
+    Other Videos Information: "{OTHER_DESCS_TEXT}"
+
 
     You need to perform two tasks simultaneously:
     1. Extract New Evidence which is helpful for answering the given question from the given video "{VIDEO_LABEL}". Refering to "Previous Evidence" and "Other Videos Information", and do not repeat details already present in them.
