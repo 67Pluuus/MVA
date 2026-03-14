@@ -27,7 +27,7 @@ parameters:
   use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
   use_text_answer: false # 是否提供文本描述 (对应 answer_text_only 模版)
   # 若两者均为 true, 则使用 answer_combined 模版
-  print_output: true
+  print_output: false
   skip_iteration: true # 直接回答
   question_analysis: false # 是否进行问题分析，生成 question_analysis 模版所需的提示词
 
