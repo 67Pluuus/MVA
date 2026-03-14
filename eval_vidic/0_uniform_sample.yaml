@@ -50,16 +50,14 @@ parameters:
 # 提示词
 prompts:
   answer_combined: |
-    /no_think
     {QUESTION}
-    {OPTIONS}
     Please select the correct answer from the options. Answer with the option’s letter directly.
+    {OPTIONS}
 
   answer_visual_only: |
-    /no_think
     {QUESTION}
-    {OPTIONS}
     Please select the correct answer from the options. Answer with the option’s letter directly.
+    {OPTIONS}
 
   answer_text_only: |
     /no_think

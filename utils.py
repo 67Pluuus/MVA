@@ -167,23 +167,23 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
                 print(f"  Path: {frame[0]}, Score: {frame[1]}")
         print("==================")
 
-    content = [
-        {
-            "type": "text",
-            "text": prompt_text
-        }
-    ]
+    content = []
     
     for k, v in video_frames.items():
+        print(k)
         content.append({
             "type": "text",
-            "text": f"[{k}]"
+            "text": f"The following is the {k}"
         })
         for frame in v:
             content.append({
                 "type": "image",
                 "image": frame[0] if isinstance(frame, tuple) else frame
             })
+    content.append({
+        "type": "text",
+        "text": prompt_text
+    })
         
     messages = [
         {
