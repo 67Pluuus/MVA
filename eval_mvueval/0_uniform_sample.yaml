@@ -4,7 +4,8 @@ paths:
   Benchmark_name: "MVU_Eval"
   video_base_dir: "Benchmark/MVU-Eval-Data"
   # 数据集 JSON 路径
-  json_file: "Benchmark/MVU-Eval-Data/MVU_Eval_QAs.json"
+  # json_file: "Benchmark/MVU-Eval-Data/MVU_Eval_QAs.json"
+  json_file: "Benchmark/MVU-Eval-Data/_.json"
 
 # 模型配置
 models:
@@ -17,8 +18,8 @@ parameters:
   num_frames_noiter: 32
   num_gpus: 1
   # 任务数量, -1 表示所有
-  num_tasks: 10
-  sub_task: "KIR"
+  num_tasks: -1
+  sub_task: "all"
   save_key_frames: false
   save_video_frames: false
   number_type: "123"

@@ -1,40 +1,38 @@
-# 路径配置
 paths:
-  # MVU Benchmark 基础路径
-  Benchmark_name: "MVU_Eval"
-  video_base_dir: "Benchmark/MVU-Eval-Data"
+  # Benchmark 基础路径
+  Benchmark_name: "ViDiC-1K"
+  video_base_dir: "Benchmark/ViDiC-1K/test"
   # 数据集 JSON 路径
-  # json_file: "Benchmark/MVU-Eval-Data/MVU_Eval_QAs.json"
-  json_file: "Benchmark/MVU-Eval-Data/_.json"
+  json_file: "Benchmark/ViDiC-1K/test/metadata.json"
 
 # 模型配置
 models:
-  main_model_path: "models/Qwen2.5-VL-7B-Instruct"
+  main_model_path: "Qwen/Qwen2.5-VL-7B-Instruct"
   api_key: "7117a451621443b1b550a08acadad5e1.Mljp89b7Rwz7SeiA"
 
 parameters:
-  size: 720
+  size: 360
   num_frames_iter: 8
-  num_frames_noiter: 32
+  num_frames_noiter: 16
   num_gpus: 1
   # 任务数量, -1 表示所有
   num_tasks: -1
   sub_task: "all"
   save_key_frames: false
   save_video_frames: false
-  number_type: "123"
+  number_type: "ABC"
 
   use_visual_answer: true # 是否提供关键帧图片 (对应 answer_visual_only 模版)
   use_text_answer: false # 是否提供文本描述 (对应 answer_text_only 模版)
   # 若两者均为 true, 则使用 answer_combined 模版
-  print_output: true
+  print_output: false
   skip_iteration: true # 直接回答
   question_analysis: false # 是否进行问题分析，生成 question_analysis 模版所需的提示词
 
   # Agent 参数
   agent:
     global_max_iterations: 20 # 通过Tool Agent获取信息的全局最大迭代次数
-    frame_bank_size: 32 # 每个视频最多取这么多帧
+    frame_bank_size: 16 # 每个视频最多取这么多帧
     initial_acceleration: 1.0
     min_acceleration_threshold: 0.2 # 单视频最低加速度阈值，低于则终止该视频
     max_score_threshold: 0.8 # 所有视频平均分数超过则整体终止
