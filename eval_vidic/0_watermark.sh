@@ -4,7 +4,7 @@
 
 # Set your available GPU count per node
 # e.g., if you have 8 GPUs on this machine, set NUM_GPUS=8
-NUM_GPUS=1
+NUM_GPUS=8
 
 # Configuration file
 CONFIG_PATH="MVA/eval_vidic/0_watermark.yaml"

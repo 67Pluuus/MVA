@@ -55,6 +55,7 @@ class AgentRunner:
         self.node_rank = node_rank
         self.run_id = run_id
         self.uniform_sample_count = {}  # 记录每个视频的均匀采样次数
+        self._sampling_error_happened = False
         
         # If run_id is provided, override output paths to save everything in log/run_id folder
         if self.run_id:
@@ -78,6 +79,10 @@ class AgentRunner:
             device_id=device_id
         )
 
+    def _mark_sampling_error(self, message: str):
+        self._sampling_error_happened = True
+        print(message)
+
     def run_on_sample(self, sample: Dict[str, Any], video_base_dir: str, prompt_override: str = None):
         """
         Run the agent on a single sample and return full details.
@@ -96,6 +101,7 @@ class AgentRunner:
         """
         if self.config['parameters'].get('print_output', False):
             print("\n\n\n")
+        self._sampling_error_happened = False
         paths = self.config['paths']
         params = self.config['parameters']  
         prompts = self.config['prompts']
@@ -235,7 +241,7 @@ class AgentRunner:
             frames_info = self._init_extract_uniform_frames(v_path, num_frames, q_id, safe_v_name, offset=0.0)
 
             if not frames_info:
-                print(
+                self._mark_sampling_error(
                     f"Error: Initial frame sampling failed for {v_name} ({v_path}). "
                     f"Expected {num_frames} frames, got 0."
                 )
@@ -464,7 +470,7 @@ class AgentRunner:
             new_frame_paths = [f['path'] for f in new_frames_info]
             
             if not new_frame_paths:
-                print(
+                self._mark_sampling_error(
                     f"Error: Iteration frame sampling failed for {v_curr_name} ({v_curr['path']}). "
                     f"option={option}, range=({target_start:.2f}, {target_end:.2f}), expected={num_frames}, got=0."
                 )
@@ -728,7 +734,7 @@ class AgentRunner:
             'timings': timings,
             'iterations': iteration_count,
             'model_outputs': model_outputs,
-            'success': True
+            'success': not self._sampling_error_happened
         }
 
     def _get_video_duration(self, video_path: str) -> float:
@@ -749,12 +755,12 @@ class AgentRunner:
         try:
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
-                print(f"Error: Failed to open video for frame extraction: {video_path}")
+                self._mark_sampling_error(f"Error: Failed to open video for frame extraction: {video_path}")
                 return None
             
             fps = cap.get(cv2.CAP_PROP_FPS)
             if fps <= 0:
-                print(f"Error: Invalid FPS ({fps}) while extracting frame from {video_path}")
+                self._mark_sampling_error(f"Error: Invalid FPS ({fps}) while extracting frame from {video_path}")
                 cap.release()
                 return None
 
@@ -787,18 +793,18 @@ class AgentRunner:
                 save_path = os.path.join(output_dir, frame_name)
                 frame_image.save(save_path)
                 return save_path
-            print(
+            self._mark_sampling_error(
                 f"Error: Failed to read frame at time={time_sec:.2f}s (frame_idx={frame_idx}) "
                 f"from {video_path}"
             )
         except Exception as e:
-            print(f"Error extracting frame from {video_path} at {time_sec:.2f}s: {e}")
+            self._mark_sampling_error(f"Error extracting frame from {video_path} at {time_sec:.2f}s: {e}")
         return None
     
     def _init_extract_uniform_frames(self, video_path: str, num_frames: int, q_id: str, v_name: str, offset: float = 0.0) -> List[dict]:
         duration = self._get_video_duration(video_path)
         if duration <= 0:
-            print(f"Error: Invalid video duration ({duration}) for initial uniform sampling: {video_path}")
+            self._mark_sampling_error(f"Error: Invalid video duration ({duration}) for initial uniform sampling: {video_path}")
             return []
 
         output_dir = os.path.join(self.config['paths']['video_frames_dir'], q_id, v_name)
@@ -814,13 +820,13 @@ class AgentRunner:
             if f_path:
                 frames_info.append({'path': f_path, 'time': t})
             else:
-                print(
+                self._mark_sampling_error(
                     f"Error: Initial uniform sampling failed for {video_path}, "
                     f"index={i}, time={t:.2f}s"
                 )
 
         if len(frames_info) < num_frames:
-            print(
+            self._mark_sampling_error(
                 f"Error: Initial uniform sampling incomplete for {video_path}. "
                 f"expected={num_frames}, got={len(frames_info)}"
             )
@@ -829,7 +835,7 @@ class AgentRunner:
     def _extract_uniform_frames(self, video_path: str, num_frames: int, q_id: str, v_name: str, offset: float = 0.0) -> List[dict]:
         duration = self._get_video_duration(video_path)
         if duration <= 0:
-            print(f"Error: Invalid video duration ({duration}) for uniform sampling: {video_path}")
+            self._mark_sampling_error(f"Error: Invalid video duration ({duration}) for uniform sampling: {video_path}")
             return []
 
         output_dir = os.path.join(self.config['paths']['video_frames_dir'], q_id, v_name)
@@ -845,13 +851,13 @@ class AgentRunner:
             if f_path:
                 frames_info.append({'path': f_path, 'time': t})
             else:
-                print(
+                self._mark_sampling_error(
                     f"Error: Uniform sampling failed for {video_path}, "
                     f"index={i}, time={t:.2f}s"
                 )
 
         if len(frames_info) < num_frames:
-            print(
+            self._mark_sampling_error(
                 f"Error: Uniform sampling incomplete for {video_path}. "
                 f"expected={num_frames}, got={len(frames_info)}"
             )
@@ -926,7 +932,7 @@ class AgentRunner:
         os.makedirs(output_dir, exist_ok=True)
 
         if num_frames <= 0:
-            print(f"Error: Invalid num_frames={num_frames} for sampling video {video_path}")
+            self._mark_sampling_error(f"Error: Invalid num_frames={num_frames} for sampling video {video_path}")
             return []
         
         if option == 5:
@@ -938,7 +944,7 @@ class AgentRunner:
             return self._extract_uniform_frames(video_path, num_frames, q_id, v_name, offset=offset)
 
         if target_end < target_start:
-            print(
+            self._mark_sampling_error(
                 f"Error: Invalid sampling range for {video_path}, "
                 f"start={target_start:.2f}, end={target_end:.2f}"
             )
@@ -953,13 +959,13 @@ class AgentRunner:
             if f_path:
                 frames_info.append({'path': f_path, 'time': t})
             else:
-                print(
+                self._mark_sampling_error(
                     f"Error: Iterative sampling failed for {video_path}, "
                     f"iteration={iteration}, option={option}, index={i}, time={t:.2f}s"
                 )
 
         if len(frames_info) < num_frames:
-            print(
+            self._mark_sampling_error(
                 f"Error: Iterative sampling incomplete for {video_path}. "
                 f"iteration={iteration}, option={option}, expected={num_frames}, got={len(frames_info)}"
             )
