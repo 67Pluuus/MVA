@@ -170,7 +170,7 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
     content = []
     
     for k, v in video_frames.items():
-        print(k)
+        # print(k)
         content.append({
             "type": "text",
             "text": f"The following is the {k}"
