@@ -84,7 +84,7 @@ PYTHONPATH=. python MVA/eval_mvueval/run_mvu_eval.py \
 RUN_STATUS=${PIPESTATUS[0]}
 
 echo "--------------------------------------------------------"
-echo "【步骤 3】评测客户端执行完毕，正在关闭后端的 vLLM 服务器..."
+echo "【步骤 3】评测客户端执行完毕，正在关闭 vLLM 服务器..."
 kill ${VLLM_PID}
 wait ${VLLM_PID} 2>/dev/null
 echo "vLLM 服务器已关闭。"

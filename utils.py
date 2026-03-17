@@ -18,29 +18,36 @@ def vllm_models(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max
         api_key = api_key,
         base_url = api_base
     )
-    if "Qwen3.5" in model_path:
-        chat_response = client.chat.completions.create(
-            model = model_path,
-            messages = messages,
-            max_tokens = max_tokens,
-            temperature = 0.0,
-            top_p = 1.0,
-            seed = 42,
-            extra_body={
-                "chat_template_kwargs": {"enable_thinking": False},
-            }
-        )
-    else:
-        chat_response = client.chat.completions.create(
-            model = model_path,
-            messages = messages,
-            max_tokens = max_tokens,
-            temperature = 0.0,
-            top_p = 1.0,
-            seed = 42,
-        )
-    model_output = chat_response.choices[0].message.content if chat_response.choices else ""
-    return model_output
+    try:
+        if "Qwen3.5" in model_path:
+            chat_response = client.chat.completions.create(
+                model = model_path,
+                messages = messages,
+                max_tokens = max_tokens,
+                temperature = 0.0,
+                top_p = 1.0,
+                seed = 42,
+                extra_body={
+                    "chat_template_kwargs": {"enable_thinking": False},
+                }
+            )
+        else:
+            chat_response = client.chat.completions.create(
+                model = model_path,
+                messages = messages,
+                max_tokens = max_tokens,
+                temperature = 0.0,
+                top_p = 1.0,
+                seed = 42,
+            )
+        model_output = chat_response.choices[0].message.content if chat_response.choices else ""
+        return model_output
+    except Exception as e:
+        import traceback
+        print("\n\n=============== [API Request Error] ===============")
+        traceback.print_exc()
+        print("===================================================\n")
+        raise RuntimeError(f"API Error details: {str(e)}")
 
 def answer(video_frames, question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False, skip_iteration=False, port=8007):
     """
