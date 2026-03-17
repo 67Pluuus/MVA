@@ -49,8 +49,16 @@ def load_config(config_path):
         return yaml.safe_load(f)
 
 class AgentRunner:
-    def __init__(self, config_path, device_id=0, node_rank=0, run_id=None):
+    def __init__(self, config_path, device_id=0, node_rank=0, run_id=None, model_path=None):
         self.config = load_config(config_path)
+        
+        # Override model_path if provided from command line
+        if model_path:
+            # Ensure the models dictionary exists before setting
+            if 'models' not in self.config:
+                self.config['models'] = {}
+            self.config['models']['main_model_path'] = model_path
+            
         self.device_id = device_id
         self.node_rank = node_rank
         self.run_id = run_id

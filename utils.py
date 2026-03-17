@@ -5,14 +5,19 @@ import cv2
 import os
 from functools import lru_cache
 
-from transformers import Qwen3VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration, AutoProcessor, set_seed
-from qwen_vl_utils import process_vision_info
+# from transformers import Qwen3VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration, AutoProcessor, set_seed
+# from qwen_vl_utils import process_vision_info
 
 from openai import OpenAI
 
 # 全局模型缓存，按GPU ID存储
 _model_cache = {}
 _processor_cache = {}
+
+def encode_image_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+    return f"data:image/jpeg;base64,{encoded_string}"
 
 def init(model_path: str="Qwen3-VL-2B-Instruct", device_id: int=None):
     """
@@ -219,9 +224,11 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
             "text": f"The following is the {k}"
         })
         for frame in v:
+            f_path = frame[0] if isinstance(frame, tuple) else frame
+            b64_url = encode_image_base64(f_path)
             content.append({
                 "type": "image_url",
-                "image_url": {"url": frame[0] if isinstance(frame, tuple) else frame}
+                "image_url": {"url": b64_url}
             })
     content.append({
         "type": "text",

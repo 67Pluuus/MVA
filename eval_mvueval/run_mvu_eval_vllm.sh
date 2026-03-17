@@ -44,7 +44,8 @@ python3 -m vllm.entrypoints.openai.api_server \
     --port ${VLLM_PORT} \
     --trust-remote-code \
     --host localhost \
-    --max-model-len 80000 > vllm_server.log 2>&1 &
+    --max-model-len 80000 \
+    --allowed-local-media-path "$(pwd)" > vllm_server.log 2>&1 &
     
 VLLM_PID=$!
 
@@ -73,7 +74,8 @@ PYTHONPATH=. python MVA/eval_mvueval/run_mvu_eval.py \
     --config "${CONFIG_PATH}" \
     --gpus "${WORKERS}" \
     --num_nodes "${NUM_NODES}" \
-    --node_rank "${NODE_RANK}" 2>&1 | tee "${OUTPUT_LOG}"
+    --node_rank "${NODE_RANK}" \
+    --model_path "${MODEL_PATH}" 2>&1 | tee "${OUTPUT_LOG}"
 
 RUN_STATUS=${PIPESTATUS[0]}
 

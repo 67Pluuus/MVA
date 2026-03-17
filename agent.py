@@ -5,6 +5,8 @@ from PIL import Image
 import re
 from typing import List, Dict, Tuple, Any
 import time
+from utils import encode_image_base64
+
 
 class ToolAgent:
     def __init__(self, model, processor, config, device_id):
@@ -98,9 +100,10 @@ class ToolAgent:
         # messages = [{"role": "user", "content": content}]
 
         for f in current_paths:
-            content.append({"type": "image_url", "image_url": {"url": f}})
+            b64_url = encode_image_base64(f)
+            content.append({"type": "image_url", "image_url": {"url": b64_url}})
             if self.config['parameters'].get('print_output', False):
-                print(f)
+                print(f"Loaded image: {f}")
         content.append({"type": "text", "text": prompt})
         messages = [{"role": "user", "content": content}]
         # output = self.Qwen_VL(messages, max_tokens=256)
@@ -214,9 +217,10 @@ class DescAgent:
         
         # messages = [{"role": "user", "content": content}]
         for f in frames:
-            content.append({"type": "image_url", "image_url": {"url": f}})
+            b64_url = encode_image_base64(f)
+            content.append({"type": "image_url", "image_url": {"url": b64_url}})
             if self.config['parameters'].get('print_output', False):
-                print(f)
+                print(f"Loaded desc image: {f}")
         content.append({"type": "text", "text": prompt})
         
         messages = [{"role": "user", "content": content}]
