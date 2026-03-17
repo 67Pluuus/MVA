@@ -6,15 +6,17 @@
 
 # --- 1. vLLM 服务端参数 ---
 # NUM_GPUS 控制分配给 vLLM 后端的物理显卡总数 (对应 --tensor-parallel-size)
-NUM_GPUS=1
+NUM_GPUS=8
 # vLLM 服务运行的端口
 VLLM_PORT=8007
 # 你的模型绝对路径或 HuggingFace 模型库名称
-MODEL_PATH="Qwen/Qwen2.5-VL-7B-Instruct" # ⚠️ 注意：请修改为你实际的模型存放路径
+# MODEL_PATH="Qwen/Qwen2.5-VL-7B-Instruct" # ⚠️ 注意：请修改为你实际的模型存放路径
+MODEL_PATH="Qwen/Qwen3.5-9B"
+# MODEL_PATH="OpenGVLab/InternVL3_5-8B"
 
 # --- 2. 评测并发客户端参数 ---
 # NUM_WORKERS 控制同时向 vLLM 发送请求的 Python 进程数（并发线程/进程）
-NUM_WORKERS=2
+NUM_WORKERS=16
 
 # --- 3. 评测配置与任务参数 ---
 CONFIG_PATH="MVA/eval_mvueval/config_mvueval.yaml"
@@ -35,7 +37,7 @@ echo "监听端口: ${VLLM_PORT}"
 echo "--------------------------------------------------------"
 
 # 启动 vLLM 服务器放入后台运行 (&)，保存进程 PID 以便结束时关闭
-python3 -m vllm.entrypoints.openai.api_server \
+VLLM_ATTENTION_BACKEND=TORCH_SDPA python3 -m vllm.entrypoints.openai.api_server \
     --model "${MODEL_PATH}" \
     --api-key sk-abc123 \
     --served-model-name "${MODEL_PATH}" \
@@ -44,14 +46,13 @@ python3 -m vllm.entrypoints.openai.api_server \
     --port ${VLLM_PORT} \
     --trust-remote-code \
     --host localhost \
-    --max-model-len 80000 \
     --allowed-local-media-path "$(pwd)" > vllm_server_mvu.log 2>&1 &
     
 VLLM_PID=$!
 
 echo "等待 vLLM 服务器初始化权重并准备就绪 (可能需要1-3分钟，请耐心等待)..."
 # 循环轮询 vLLM 的 health 端点，直到返回成功才继续往下走
-while ! curl -s http://localhost:${VLLM_PORT}/v1/models > /dev/null; do
+while ! curl -s -H "Authorization: Bearer sk-abc123" http://localhost:${VLLM_PORT}/v1/models > /dev/null; do
     sleep 5
 done
 echo "✅ vLLM 服务器已就绪！可以开始并发评测。"

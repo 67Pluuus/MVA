@@ -10,7 +10,7 @@ models:
   api_key: "7117a451621443b1b550a08acadad5e1.Mljp89b7Rwz7SeiA"
 
 parameters:
-  size: 360
+  size: 720
   num_frames_iter: 8
   num_frames_noiter: 32
   num_gpus: 1
