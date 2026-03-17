@@ -3,10 +3,6 @@
 import base64
 import cv2
 import os
-from functools import lru_cache
-
-# from transformers import Qwen3VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration, AutoProcessor, set_seed
-# from qwen_vl_utils import process_vision_info
 
 from openai import OpenAI
 
