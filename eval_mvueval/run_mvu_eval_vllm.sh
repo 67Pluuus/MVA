@@ -9,7 +9,7 @@
 NUM_GPUS=8
 
 # vLLM 服务运行的端口
-VLLM_PORT=8007
+VLLM_PORT=29501
 
 # 你的模型绝对路径或 HuggingFace 模型库名称
 # MODEL_PATH="Qwen/Qwen2.5-VL-7B-Instruct" 
