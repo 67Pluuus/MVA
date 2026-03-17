@@ -45,7 +45,7 @@ python3 -m vllm.entrypoints.openai.api_server \
     --trust-remote-code \
     --host localhost \
     --max-model-len 80000 \
-    --allowed-local-media-path "$(pwd)" > vllm_server.log 2>&1 &
+    --allowed-local-media-path "$(pwd)" > vllm_server_mvu.log 2>&1 &
     
 VLLM_PID=$!
 
