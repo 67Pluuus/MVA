@@ -16,6 +16,10 @@ class ToolAgent:
     def Qwen_VL(self, messages, max_tokens=512):
         from utils import Qwen_VL
         return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
+    
+    def vllm_models(self, messages, max_tokens=512):
+        from utils import vllm_models
+        return vllm_models(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
 
     def decide_action(self, question: str, frame_bank: List[Tuple[str, float, float]], current_frames_info: List[dict], video_duration: float, video_label: str = "ONE of the videos", current_video_desc: str = "", other_videos_desc: Dict[str, str] = {}, options_text: str = "", question_analysis: str = "") -> Tuple[List[float], int, float, float]:
         """
@@ -85,14 +89,22 @@ class ToolAgent:
             print(f"Other Videos Description: {other_videos_str}")
             print("============Tool Agent Current Frame for Scoring===========")
         # Add visual content ONLY for current frames (to score them)
+        # for f in current_paths:
+        #     content.append({"type": "image", "image": f})
+        #     if self.config['parameters'].get('print_output', False):
+        #         print(f)
+        # content.append({"type": "text", "text": prompt})
+        
+        # messages = [{"role": "user", "content": content}]
+
         for f in current_paths:
-            content.append({"type": "image", "image": f})
+            content.append({"type": "image_url", "image_url": {"url": f}})
             if self.config['parameters'].get('print_output', False):
                 print(f)
         content.append({"type": "text", "text": prompt})
-        
         messages = [{"role": "user", "content": content}]
-        output = self.Qwen_VL(messages, max_tokens=256)
+        # output = self.Qwen_VL(messages, max_tokens=256)
+        output = self.vllm_models(messages, max_tokens=256)
         if self.config['parameters'].get('print_output', False):
             print("============Tool Agent Output===========")
             print(output)
@@ -157,6 +169,10 @@ class DescAgent:
         from utils import Qwen_VL
         return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
 
+    def vllm_models(self, messages, max_tokens=4096):
+        from utils import vllm_models
+        return vllm_models(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
+
     def describe_and_evaluate(self, question: str, frames: List[str], desc_old: str, other_descs: Dict[str, str], video_duration: float, video_label: str = "ONE of the videos", options_text: str = "", question_analysis: str = "") -> Tuple[str, float, bool, bool]:
         """
         Generate a description from frames AND evaluate status (score, termination) in one go.
@@ -190,14 +206,21 @@ class DescAgent:
             print(f"Other Videos Description: {other_descs_text}")
             print("============Desc Agent Frame for Description===========")
 
+        # for f in frames:
+        #     content.append({"type": "image", "image": f})
+        #     if self.config['parameters'].get('print_output', False):
+        #         print(f)
+        # content.append({"type": "text", "text": prompt})
+        
+        # messages = [{"role": "user", "content": content}]
         for f in frames:
-            content.append({"type": "image", "image": f})
+            content.append({"type": "image_url", "image_url": {"url": f}})
             if self.config['parameters'].get('print_output', False):
                 print(f)
         content.append({"type": "text", "text": prompt})
         
         messages = [{"role": "user", "content": content}]
-        output = self.Qwen_VL(messages, max_tokens=384)
+        output = self.vllm_models(messages, max_tokens=384)
         if self.config['parameters'].get('print_output', False):
             print("============Desc Agent Output===========")
             print(output)

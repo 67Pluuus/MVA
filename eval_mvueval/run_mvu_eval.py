@@ -21,16 +21,16 @@ def load_config(config_path):
 
 def process_chunk(args):
     """
-    Process a chunk of tasks on a specific GPU
+    Process a chunk of tasks on a specific worker process
     """
-    gpu_id, tasks, config_path, node_rank, run_id = args
+    worker_id, tasks, config_path, node_rank, run_id = args
     
-    # Initialize runner for this process/GPU with run_id
-    runner = AgentRunner(config_path, device_id=gpu_id, node_rank=node_rank, run_id=run_id)
+    # Initialize runner for this worker process
+    runner = AgentRunner(config_path, device_id=worker_id, node_rank=node_rank, run_id=run_id)
     video_base_dir = runner.config['paths']['video_base_dir']
     
     results = []
-    for key, item in tqdm(tasks, desc=f"GPU {gpu_id}", position=gpu_id, leave=False):
+    for key, item in tqdm(tasks, desc=f"Worker {worker_id}", position=worker_id, leave=False):
         try:
             # Pass key info to runner
             item_with_key = item.copy()
@@ -78,15 +78,15 @@ def main():
     # Copy config file to log directory
     shutil.copy(args.config, log_dir)
     
-    # Parse GPU list
+    # Parse GPU list (now acting as worker/concurrency IDs)
     gpu_list = [int(x.strip()) for x in args.gpus.split(",") if x.strip()]
-    num_gpus = len(gpu_list)
+    num_workers = len(gpu_list)
     
     print(f"--- MVU Eval ---")
     print(f"Run ID: {run_id}")
     print(f"Log Directory: {log_dir}")
     print(f"Node: {args.node_rank}/{args.num_nodes - 1}")
-    print(f"GPUs available: {gpu_list}")
+    print(f"Workers (Concurrency) available: {gpu_list}")
     
     # output_dir is overridden by log_dir logic in AgentRunner, but main needs it for final save
     final_output_dir = log_dir
@@ -127,19 +127,19 @@ def main():
         print("No tasks assigned to this node.")
         return
 
-    # 2. Split for GPUs within this node
-    tasks_per_gpu = {gid: [] for gid in gpu_list}
+    # 2. Split for Workers (formerly GPUs) within this node
+    tasks_per_worker = {wid: [] for wid in gpu_list}
     
     for i, key in enumerate(node_keys_all):
-        # Assign round-robin to available GPUs
-        target_gpu = gpu_list[i % num_gpus]
-        tasks_per_gpu[target_gpu].append((key, data[key]))
+        # Assign round-robin to available workers
+        target_worker = gpu_list[i % num_workers]
+        tasks_per_worker[target_worker].append((key, data[key]))
         
     # Prepare mp args
     pool_args = []
-    for g in gpu_list:
-        if tasks_per_gpu[g]:
-            pool_args.append((g, tasks_per_gpu[g], args.config, args.node_rank, run_id))
+    for w in gpu_list:
+        if tasks_per_worker[w]:
+            pool_args.append((w, tasks_per_worker[w], args.config, args.node_rank, run_id))
             
     # Run Pool
     print(f"Starting {len(pool_args)} processes...")

@@ -8,6 +8,8 @@ from functools import lru_cache
 from transformers import Qwen3VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration, AutoProcessor, set_seed
 from qwen_vl_utils import process_vision_info
 
+from openai import OpenAI
+
 # 全局模型缓存，按GPU ID存储
 _model_cache = {}
 _processor_cache = {}
@@ -101,6 +103,25 @@ def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tok
     return final_output
 
 
+def vllm_models(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tokens=2048):
+    api_key = "sk-abc123"
+    api_base = "http://localhost:8007/v1"
+    client = OpenAI(
+        api_key = api_key,
+        base_url = api_base
+    )
+
+    chat_response = client.chat.completions.create(
+        model = model_path,
+        messages = messages,
+        max_tokens = max_tokens,
+        temperature = 0.0,
+        seed = 42
+    )
+
+    model_output = chat_response.choices[0].message.content if chat_response.choices else ""
+    return model_output
+
 def answer(video_frames, question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False, skip_iteration=False):
     """
     Generate an answer based on video frames and a question.
@@ -169,6 +190,28 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
 
     content = []
     
+    # for k, v in video_frames.items():
+    #     # print(k)
+    #     content.append({
+    #         "type": "text",
+    #         "text": f"The following is the {k}"
+    #     })
+    #     for frame in v:
+    #         content.append({
+    #             "type": "image",
+    #             "image": frame[0] if isinstance(frame, tuple) else frame
+    #         })
+    # content.append({
+    #     "type": "text",
+    #     "text": prompt_text
+    # })
+        
+    # messages = [
+    #     {
+    #         "role": "user",
+    #         "content": content
+    #     }
+    # ]
     for k, v in video_frames.items():
         # print(k)
         content.append({
@@ -177,27 +220,30 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
         })
         for frame in v:
             content.append({
-                "type": "image",
-                "image": frame[0] if isinstance(frame, tuple) else frame
+                "type": "image_url",
+                "image_url": {"url": frame[0] if isinstance(frame, tuple) else frame}
             })
     content.append({
         "type": "text",
         "text": prompt_text
     })
-        
     messages = [
         {
             "role": "user",
             "content": content
         }
     ]
-
-    # print(f"messages: {messages}")
     
+    # try:
+    #     output_text = Qwen_VL(messages, device_id=device_id, model_path=model_path, max_tokens=512)
+    # except Exception as e:
+    #     print(f"Error in answer generation: {e}")
+    #     output_text = "Error generating answer."
+
     try:
-        output_text = Qwen_VL(messages, device_id=device_id, model_path=model_path, max_tokens=512)
+        output_text = vllm_models(messages, device_id=device_id, model_path=model_path, max_tokens=512)
     except Exception as e:
-        print(f"Error in answer generation: {e}")
+        print(f"Error in answer generation with vllm: {e}")
         output_text = "Error generating answer."
 
     if print_data:
@@ -244,7 +290,7 @@ def question_analyse(question, options, prompt_template=None, device_id=None, mo
     ]
     
     try:
-        output_text = Qwen_VL(messages, device_id=device_id, model_path=model_path, max_tokens=512)
+        output_text = vllm_models(messages, device_id=device_id, model_path=model_path, max_tokens=512)
     except Exception as e:
         print(f"Error in question analysis: {e}")
         output_text = "Analysis failed."

@@ -73,11 +73,12 @@ class AgentRunner:
         os.makedirs(self.config['paths']['video_frames_dir'], exist_ok=True)
         os.makedirs(self.config['paths']['key_frames_dir'], exist_ok=True)
         
-        # Initialize model
-        self.model, self.processor = init(
-            model_path=self.config['models']['main_model_path'], 
-            device_id=device_id
-        )
+        # Initialize model (Not needed for vLLM, so we avoid loading weights into VRAM)
+        self.model, self.processor = None, None
+        # self.model, self.processor = init(
+        #     model_path=self.config['models']['main_model_path'], 
+        #     device_id=device_id
+        # )
 
     def _mark_sampling_error(self, message: str):
         self._sampling_error_happened = True
