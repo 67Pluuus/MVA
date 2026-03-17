@@ -3,12 +3,8 @@
 import base64
 import cv2
 import os
-
 from openai import OpenAI
 
-# 全局模型缓存，按GPU ID存储
-_model_cache = {}
-_processor_cache = {}
 
 def encode_image_base64(image_path):
     with open(image_path, "rb") as image_file:
