@@ -23,27 +23,21 @@ def process_chunk(args):
     """
     Process a chunk of tasks on a specific worker process
     """
-    worker_id, tasks, config_path, node_rank, run_id, model_path = args
+    worker_id, tasks, config_path, node_rank, run_id, model_path, port = args
     
     # Initialize runner for this worker process
-    runner = AgentRunner(config_path, device_id=worker_id, node_rank=node_rank, run_id=run_id, model_path=model_path)
+    runner = AgentRunner(config_path, device_id=worker_id, node_rank=node_rank, run_id=run_id, model_path=model_path, port=port)
     video_base_dir = runner.config['paths']['video_base_dir']
     
     results = []
     for key, item in tqdm(tasks, desc=f"Worker {worker_id}", position=worker_id, leave=False):
-        try:
-            # Pass key info to runner
-            item_with_key = item.copy()
-            item_with_key['key'] = key
-            
-            # Run runner
-            result_data = runner.run_on_sample(item_with_key, video_base_dir)
-            results.append(result_data)
-            
-        except Exception as e:
-            # print(f"Error processing sample {key}: {e}")
-            err_entry = {"key": key, "error": str(e), "success": False}
-            results.append(err_entry)
+        # Pass key info to runner
+        item_with_key = item.copy()
+        item_with_key['key'] = key
+        
+        # Run runner
+        result_data = runner.run_on_sample(item_with_key, video_base_dir)
+        results.append(result_data)
             
     return results
 
@@ -55,6 +49,7 @@ def main():
     parser.add_argument('--node_rank', type=int, default=0, help='Rank of current node')
     parser.add_argument('--num_tasks', type=int, required=False)
     parser.add_argument('--model_path', type=str, help='Path to the model to use (overrides config)')
+    parser.add_argument('--port', type=int, default=8007, help='vLLM port')
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -140,7 +135,7 @@ def main():
     pool_args = []
     for w in gpu_list:
         if tasks_per_worker[w]:
-            pool_args.append((w, tasks_per_worker[w], args.config, args.node_rank, run_id, args.model_path))
+            pool_args.append((w, tasks_per_worker[w], args.config, args.node_rank, run_id, args.model_path, args.port))
             
     # Run Pool
     print(f"Starting {len(pool_args)} processes...")

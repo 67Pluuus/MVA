@@ -19,98 +19,9 @@ def encode_image_base64(image_path):
         encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
     return f"data:image/jpeg;base64,{encoded_string}"
 
-def init(model_path: str="Qwen3-VL-2B-Instruct", device_id: int=None):
-    """
-    初始化模型和处理器
-    
-    Args:
-        model_path: 模型路径
-        device_id: GPU设备ID (0-7)，如果为None则使用device_map="auto"
-    """
-    # Set seed for reproducibility
-    set_seed(42)
-
-    # 如果指定了device_id，使用缓存
-    if device_id is not None:
-        cache_key = f"{model_path}_{device_id}"
-        if cache_key in _model_cache:
-            return _model_cache[cache_key], _processor_cache[cache_key]
-    
-    # 设置设备映射
-    if device_id is not None:
-        device_map = f"cuda:{device_id}"
-    else:
-        device_map = "auto"
-    
-    # Check if model exists in cache to avoid reloading even without device_id if previously loaded with same params
-    # But simplifying: always trust cache if device_id provided.
-    
-    try:
-        if "Qwen3" in model_path:
-            model = Qwen3VLForConditionalGeneration.from_pretrained(
-                model_path, 
-                dtype="auto",
-                device_map=device_map
-            )
-        elif "Qwen2.5" in model_path:
-            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-                model_path, 
-                dtype="auto",
-                device_map=device_map
-            )
-
-        processor = AutoProcessor.from_pretrained(model_path)
-    except Exception as e:
-        # Fallback or error handling
-        print(f"Error loading model {model_path}: {e}")
-        raise e
-    
-    # 缓存模型和处理器
-    if device_id is not None:
-        cache_key = f"{model_path}_{device_id}"
-        _model_cache[cache_key] = model
-        _processor_cache[cache_key] = processor
-    
-    return model, processor
-
-
-def Qwen_VL(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tokens=2048):
-    model, processor = init(model_path=model_path, device_id=device_id)
-    text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    
-    # Qwen2.5 uses patch size 14, Qwen3 uses 16 
-    if "Qwen2.5" in model_path:
-        images, videos, video_kwargs = process_vision_info(messages, return_video_kwargs=True, return_video_metadata=True)
-    else:
-        images, videos, video_kwargs = process_vision_info(messages, image_patch_size=16, return_video_kwargs=True, return_video_metadata=True)
-
-    if videos is not None:
-        videos, video_metadatas = zip(*videos)
-        videos, video_metadatas = list(videos), list(video_metadatas)
-    else:
-        video_metadatas = None
-
-    # Optional debug printing of model I/O controlled by environment variable PRINT_MODEL_IO
-
-    inputs = processor(text=text, images=images, videos=videos, video_metadata=video_metadatas, return_tensors="pt", do_resize=False, **video_kwargs)
-    inputs = inputs.to(model.device)
-
-    # Use do_sample=False to minimize randomness (greedy decoding)
-    generated_ids = model.generate(**inputs, max_new_tokens=max_tokens, do_sample=False)
-    generated_ids_trimmed = [
-        out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-    ]
-    output_text = processor.batch_decode(
-        generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-    )
-    final_output = output_text[0] if output_text else ""
-
-    return final_output
-
-
-def vllm_models(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tokens=2048):
+def vllm_models(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max_tokens=2048, port=8007):
     api_key = "sk-abc123"
-    api_base = "http://localhost:8007/v1"
+    api_base = f"http://localhost:{port}/v1"
     client = OpenAI(
         api_key = api_key,
         base_url = api_base
@@ -139,7 +50,7 @@ def vllm_models(messages, device_id=None, model_path="Qwen3-VL-2B-Instruct", max
     model_output = chat_response.choices[0].message.content if chat_response.choices else ""
     return model_output
 
-def answer(video_frames, question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False, skip_iteration=False):
+def answer(video_frames, question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False, skip_iteration=False, port=8007):
     """
     Generate an answer based on video frames and a question.
     
@@ -156,19 +67,15 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
     """
     # User provided template. Try to format it if it has placeholders.
     # Use safe formatting to avoid errors if keys are missing in template but present in args, or vice-versa
-    try:
-        # Check if template expects formatting
-        if "{QUESTION}" in prompt_template or "{OPTIONS}" in prompt_template:
-            prompt_text = prompt_template.replace("{QUESTION}", question).replace("{OPTIONS}", options)
-            # Remove {FRAMES} placeholder if present, as frames are passed as images
-            prompt_text = prompt_text.replace("{FRAMES}", "")
-            # Remove {BBOX} placeholder if present (currently not supported by this function, might need to add if needed)
-            prompt_text = prompt_text.replace("{BBOX}", "") 
-        else:
-            # If no standard placeholders, treat as prefix and append question/options
-            prompt_text = f"{prompt_template}\n\nQuestion: {question}\nOptions:\n{options}"
-    except Exception as e:
-        print(f"Warning: Failed to format prompt template: {e}")
+    # Check if template expects formatting
+    if "{QUESTION}" in prompt_template or "{OPTIONS}" in prompt_template:
+        prompt_text = prompt_template.replace("{QUESTION}", question).replace("{OPTIONS}", options)
+        # Remove {FRAMES} placeholder if present, as frames are passed as images
+        prompt_text = prompt_text.replace("{FRAMES}", "")
+        # Remove {BBOX} placeholder if present (currently not supported by this function, might need to add if needed)
+        prompt_text = prompt_text.replace("{BBOX}", "") 
+    else:
+        # If no standard placeholders, treat as prefix and append question/options
         prompt_text = f"{prompt_template}\n\nQuestion: {question}\nOptions:\n{options}"
 
     if print_data:
@@ -259,18 +166,14 @@ def answer(video_frames, question, options, prompt_template=None, device_id=None
     #     print(f"Error in answer generation: {e}")
     #     output_text = "Error generating answer."
 
-    try:
-        output_text = vllm_models(messages, device_id=device_id, model_path=model_path, max_tokens=512)
-    except Exception as e:
-        print(f"Error in answer generation with vllm: {e}")
-        output_text = "Error generating answer."
+    output_text = vllm_models(messages, device_id=device_id, model_path=model_path, max_tokens=512, port=port)
 
     if print_data:
         print("======Model output========\n", output_text)
 
     return output_text
 
-def question_analyse(question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False):
+def question_analyse(question, options, prompt_template=None, device_id=None, model_path="Qwen3-VL-2B-Instruct", print_data=False, port=8007):
     """
     Analyze the question and options to determine the strategy.
     
@@ -282,14 +185,10 @@ def question_analyse(question, options, prompt_template=None, device_id=None, mo
         model_path: Model path.
         print_data: Whether to print debug info.
     """
-    try:
-        if prompt_template and ("{QUESTION}" in prompt_template or "{OPTIONS}" in prompt_template):
-            prompt_text = prompt_template.replace("{QUESTION}", question).replace("{OPTIONS}", options)
-        else:
-            prompt_text = f"{prompt_template}\n\nQuestion: {question}\nOptions:\n{options}" if prompt_template else f"Question: {question}\nOptions:\n{options}"
-    except Exception as e:
-        print(f"Warning: Failed to format analysis prompt: {e}")
-        prompt_text = f"Question: {question}\nOptions:\n{options}"
+    if prompt_template and ("{QUESTION}" in prompt_template or "{OPTIONS}" in prompt_template):
+        prompt_text = prompt_template.replace("{QUESTION}", question).replace("{OPTIONS}", options)
+    else:
+        prompt_text = f"{prompt_template}\n\nQuestion: {question}\nOptions:\n{options}" if prompt_template else f"Question: {question}\nOptions:\n{options}"
 
     if print_data:
         print("=== Question Analysis ===")
@@ -308,11 +207,7 @@ def question_analyse(question, options, prompt_template=None, device_id=None, mo
         }
     ]
     
-    try:
-        output_text = vllm_models(messages, device_id=device_id, model_path=model_path, max_tokens=512)
-    except Exception as e:
-        print(f"Error in question analysis: {e}")
-        output_text = "Analysis failed."
+    output_text = vllm_models(messages, device_id=device_id, model_path=model_path, max_tokens=512, port=port)
 
     if print_data:
         print("======Analysis Output========\n", output_text)

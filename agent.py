@@ -9,19 +9,16 @@ from utils import encode_image_base64
 
 
 class ToolAgent:
-    def __init__(self, model, processor, config, device_id):
+    def __init__(self, model, processor, config, device_id, port=8007):
         self.model = model
         self.processor = processor
         self.config = config
         self.device_id = device_id
-
-    def Qwen_VL(self, messages, max_tokens=512):
-        from utils import Qwen_VL
-        return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
+        self.port = port
     
     def vllm_models(self, messages, max_tokens=512):
         from utils import vllm_models
-        return vllm_models(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
+        return vllm_models(messages, self.device_id, self.config['models']['main_model_path'], max_tokens, port=self.port)
 
     def decide_action(self, question: str, frame_bank: List[Tuple[str, float, float]], current_frames_info: List[dict], video_duration: float, video_label: str = "ONE of the videos", current_video_desc: str = "", other_videos_desc: Dict[str, str] = {}, options_text: str = "", question_analysis: str = "") -> Tuple[List[float], int, float, float]:
         """
@@ -162,19 +159,16 @@ class ToolAgent:
 
 
 class DescAgent:
-    def __init__(self, model, processor, config, device_id):
+    def __init__(self, model, processor, config, device_id, port=8007):
         self.model = model
         self.processor = processor
         self.config = config
         self.device_id = device_id
-
-    def Qwen_VL(self, messages, max_tokens=4096):
-        from utils import Qwen_VL
-        return Qwen_VL(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
+        self.port = port
 
     def vllm_models(self, messages, max_tokens=4096):
         from utils import vllm_models
-        return vllm_models(messages, self.device_id, self.config['models']['main_model_path'], max_tokens)
+        return vllm_models(messages, self.device_id, self.config['models']['main_model_path'], max_tokens, port=self.port)
 
     def describe_and_evaluate(self, question: str, frames: List[str], desc_old: str, other_descs: Dict[str, str], video_duration: float, video_label: str = "ONE of the videos", options_text: str = "", question_analysis: str = "") -> Tuple[str, float, bool, bool]:
         """

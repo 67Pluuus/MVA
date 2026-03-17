@@ -10,7 +10,7 @@ import math
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
-from utils import init, answer, question_analyse
+from utils import answer, question_analyse
 from agent import ToolAgent, DescAgent
 import cv2
 from PIL import Image
@@ -49,8 +49,9 @@ def load_config(config_path):
         return yaml.safe_load(f)
 
 class AgentRunner:
-    def __init__(self, config_path, device_id=0, node_rank=0, run_id=None, model_path=None):
+    def __init__(self, config_path, device_id=0, node_rank=0, run_id=None, model_path=None, port=8007):
         self.config = load_config(config_path)
+        self.port = port
         
         # Override model_path if provided from command line
         if model_path:
@@ -83,10 +84,6 @@ class AgentRunner:
         
         # Initialize model (Not needed for vLLM, so we avoid loading weights into VRAM)
         self.model, self.processor = None, None
-        # self.model, self.processor = init(
-        #     model_path=self.config['models']['main_model_path'], 
-        #     device_id=device_id
-        # )
 
     def _mark_sampling_error(self, message: str):
         self._sampling_error_happened = True
@@ -168,8 +165,8 @@ class AgentRunner:
             'videos': {}
         }
         
-        tool_agent = ToolAgent(self.model, self.processor, self.config, self.device_id)
-        desc_agent = DescAgent(self.model, self.processor, self.config, self.device_id)
+        tool_agent = ToolAgent(self.model, self.processor, self.config, self.device_id, self.port)
+        desc_agent = DescAgent(self.model, self.processor, self.config, self.device_id, self.port)
         
         if not skip_iteration and question_analysis:
             # --- Question Analysis Agent (Pre-Initialization) ---
@@ -185,7 +182,8 @@ class AgentRunner:
                 prompt_template=analysis_template,
                 device_id=self.device_id,
                 model_path=self.config['models']['main_model_path'],
-                print_data=self.config['parameters'].get('print_output', False)
+                print_data=self.config['parameters'].get('print_output', False),
+                port=self.port
             ).strip()
             
             TextBank['question_analysis'] = analysis_result
@@ -634,64 +632,60 @@ class AgentRunner:
              # If text-only mode and no text, we can't proceed.
              return {'error': "No descriptions available (Text-only Answer required)", 'success': False, 'key': key}
 
-        try:
-            if prompt_override:
-                current_prompt_template = prompt_override
+        if prompt_override:
+            current_prompt_template = prompt_override
+        else:
+            # Select template from config
+            if use_visual and use_text:
+                current_prompt_template = prompts.get('answer_combined')
+                # Fallback to legacy 'answer' key if 'answer_combined' missing
+                if not current_prompt_template:
+                    current_prompt_template = prompts.get('answer')
+            elif use_visual and not use_text:
+                current_prompt_template = prompts.get('answer_visual_only')
+            elif not use_visual and use_text:
+                current_prompt_template = prompts.get('answer_text_only')
+        
+        # Create a default template if missing (safety net)
+        if not current_prompt_template:
+            if use_visual and not use_text:
+                    current_prompt_template = "Question: {QUESTION}\nOptions: {OPTIONS}\nAnswer based on the images."
+            elif not use_visual and use_text:
+                    current_prompt_template = "Video Descriptions:\n{DESCRIPTIONS}\n\nQuestion: {QUESTION}\nOptions: {OPTIONS}\nAnswer based on descriptions."
             else:
-                # Select template from config
-                if use_visual and use_text:
-                    current_prompt_template = prompts.get('answer_combined')
-                    # Fallback to legacy 'answer' key if 'answer_combined' missing
-                    if not current_prompt_template:
-                        current_prompt_template = prompts.get('answer')
-                elif use_visual and not use_text:
-                    current_prompt_template = prompts.get('answer_visual_only')
-                elif not use_visual and use_text:
-                    current_prompt_template = prompts.get('answer_text_only')
-            
-            # Create a default template if missing (safety net)
-            if not current_prompt_template:
-                if use_visual and not use_text:
-                     current_prompt_template = "Question: {QUESTION}\nOptions: {OPTIONS}\nAnswer based on the images."
-                elif not use_visual and use_text:
-                     current_prompt_template = "Video Descriptions:\n{DESCRIPTIONS}\n\nQuestion: {QUESTION}\nOptions: {OPTIONS}\nAnswer based on descriptions."
-                else:
-                     current_prompt_template = "Video Descriptions:\n{DESCRIPTIONS}\n\nQuestion: {QUESTION}\nOptions: {OPTIONS}\nAnswer based on images and descriptions."
+                    current_prompt_template = "Video Descriptions:\n{DESCRIPTIONS}\n\nQuestion: {QUESTION}\nOptions: {OPTIONS}\nAnswer based on images and descriptions."
 
-            # Inject Descriptions if needed
-            if "{DESCRIPTIONS}" in current_prompt_template:
-                current_prompt_template = current_prompt_template.replace("{DESCRIPTIONS}", final_descriptions_str)
-            else:
-                # Fallback: if template doesn't have placeholder but we have text to show (and we are in a text mode), append it.
-                if use_text and final_descriptions_str:
-                    # Prepend description is standard practice
-                    current_prompt_template = current_prompt_template.replace("Question:", f"Video Descriptions:\n{final_descriptions_str}\n\nQuestion:")
+        # Inject Descriptions if needed
+        if "{DESCRIPTIONS}" in current_prompt_template:
+            current_prompt_template = current_prompt_template.replace("{DESCRIPTIONS}", final_descriptions_str)
+        else:
+            # Fallback: if template doesn't have placeholder but we have text to show (and we are in a text mode), append it.
+            if use_text and final_descriptions_str:
+                # Prepend description is standard practice
+                current_prompt_template = current_prompt_template.replace("Question:", f"Video Descriptions:\n{final_descriptions_str}\n\nQuestion:")
 
-            if self.config['parameters'].get('print_output', False):
-                print("=======Start Answering=====")
-                st = time.time()
+        if self.config['parameters'].get('print_output', False):
+            print("=======Start Answering=====")
+            st = time.time()
 
-            output_text = answer(
-                video_frames=final_frame_paths,
-                question=question,
-                options=options_text,
-                prompt_template=current_prompt_template,
-                device_id=self.device_id,
-                model_path=self.config['models']['main_model_path'],
-                print_data=self.config['parameters'].get('print_output', False),
-                skip_iteration=skip_iteration
-            )
+        output_text = answer(
+            video_frames=final_frame_paths,
+            question=question,
+            options=options_text,
+            prompt_template=current_prompt_template,
+            device_id=self.device_id,
+            model_path=self.config['models']['main_model_path'],
+            print_data=self.config['parameters'].get('print_output', False),
+            skip_iteration=skip_iteration,
+            port=self.port
+        )
 
-            if self.config['parameters'].get('print_output', False):
-                ed = time.time()
-                print(f"Answer generation took {(ed - st):.2f} s")
-            
-            ans_output_clean = output_text.strip()
-            predicted_ans = ans_output_clean if ans_output_clean else ""
-                    
-        except Exception as e:
-            predicted_ans = ""
-            output_text = str(e)
+        if self.config['parameters'].get('print_output', False):
+            ed = time.time()
+            print(f"Answer generation took {(ed - st):.2f} s")
+        
+        ans_output_clean = output_text.strip()
+        predicted_ans = ans_output_clean if ans_output_clean else ""
             
         is_correct = False
         if ground_truth and predicted_ans:
@@ -711,23 +705,17 @@ class AgentRunner:
         try:
             # 清理 key_frames 目录 (如果配置为不保存)
             if not self.config['parameters'].get('save_key_frames', False):
-                try:
-                    question_dir = os.path.join(self.config['paths']['key_frames_dir'], q_id)
-                    if os.path.exists(question_dir):
-                        import shutil
-                        shutil.rmtree(question_dir)
-                except Exception as e:
-                    print(f"Warning: Failed to clean up key frames directory: {e}")
+                question_dir = os.path.join(self.config['paths']['key_frames_dir'], q_id)
+                if os.path.exists(question_dir):
+                    import shutil
+                    shutil.rmtree(question_dir)
                     
             # 清理 video_frames 目录 (如果配置为不保存)
             if not self.config['parameters'].get('save_video_frames', False):
-                try:
-                    question_dir = os.path.join(self.config['paths']['video_frames_dir'], q_id)
-                    if os.path.exists(question_dir):
-                        import shutil
-                        shutil.rmtree(question_dir)
-                except Exception as e:
-                    print(f"Warning: Failed to clean up video frames directory: {e}")
+                question_dir = os.path.join(self.config['paths']['video_frames_dir'], q_id)
+                if os.path.exists(question_dir):
+                    import shutil
+                    shutil.rmtree(question_dir)
         except Exception as e:
              print(f"Warning: Global cleanup failed in run_on_sample: {e}")
 
@@ -747,18 +735,14 @@ class AgentRunner:
         }
 
     def _get_video_duration(self, video_path: str) -> float:
-        try:
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                return 0.0
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-            duration = frame_count / fps if fps > 0 else 0
-            cap.release()
-            return duration
-        except Exception as e:
-            print(f"Error getting video duration: {e}")
-            return 0.0
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise ValueError(f"Failed to open video file: {video_path}")
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        duration = frame_count / fps if fps > 0 else 0
+        cap.release()
+        return duration
 
     def _extract_frame_at_time(self, video_path: str, time_sec: float, output_dir: str, frame_name: str) -> str:
         try:

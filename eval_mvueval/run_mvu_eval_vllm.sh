@@ -7,10 +7,12 @@
 # --- 1. vLLM 服务端参数 ---
 # NUM_GPUS 控制分配给 vLLM 后端的物理显卡总数 (对应 --tensor-parallel-size)
 NUM_GPUS=8
+
 # vLLM 服务运行的端口
 VLLM_PORT=8007
+
 # 你的模型绝对路径或 HuggingFace 模型库名称
-# MODEL_PATH="Qwen/Qwen2.5-VL-7B-Instruct" # ⚠️ 注意：请修改为你实际的模型存放路径
+# MODEL_PATH="Qwen/Qwen2.5-VL-7B-Instruct" 
 MODEL_PATH="Qwen/Qwen3.5-9B"
 # MODEL_PATH="OpenGVLab/InternVL3_5-8B"
 
@@ -76,6 +78,7 @@ PYTHONPATH=. python MVA/eval_mvueval/run_mvu_eval.py \
     --gpus "${WORKERS}" \
     --num_nodes "${NUM_NODES}" \
     --node_rank "${NODE_RANK}" \
+    --port ${VLLM_PORT} \
     --model_path "${MODEL_PATH}" 2>&1 | tee "${OUTPUT_LOG}"
 
 RUN_STATUS=${PIPESTATUS[0]}
