@@ -40,7 +40,7 @@ python3 -m vllm.entrypoints.openai.api_server \
     --api-key sk-abc123 \
     --served-model-name "${MODEL_PATH}" \
     --tensor-parallel-size ${NUM_GPUS} \
-    ----pipeline-parallel-size 1 \
+    --pipeline-parallel-size 1 \
     --port ${VLLM_PORT} \
     --trust-remote-code \
     --host localhost \
